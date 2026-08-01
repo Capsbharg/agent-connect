@@ -1,0 +1,11 @@
+node_modules/
+.env
+npm-debug.log*
+projects.json
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+examples/**/dist/
+examples/**/node_modules/
+.claude/

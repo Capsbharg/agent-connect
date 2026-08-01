@@ -1,0 +1,12 @@
+{
+  "name": "agent-connect-example-slack-claude-minimal",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@capsbharg/agent-connect": "file:../.."
+  }
+}

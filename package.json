@@ -1,0 +1,94 @@
+{
+  "name": "@capsbharg/agent-connect",
+  "version": "0.1.0",
+  "description": "Universal middleware between messaging platforms (Slack, Telegram, ...) and AI coding agents (Claude Code, Cursor, Codex, ...).",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "agent-connect": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": "24.18.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node --enable-source-maps dist/cli/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "slack",
+    "telegram",
+    "claude",
+    "claude-code",
+    "cursor",
+    "codex",
+    "anthropic",
+    "ai-agent",
+    "llm",
+    "chatops",
+    "devops",
+    "automation",
+    "bullmq",
+    "redis",
+    "middleware",
+    "framework"
+  ],
+  "author": "",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@bull-board/api": "^8.3.0",
+    "@bull-board/express": "^8.3.0",
+    "@clack/prompts": "^0.9.1",
+    "@slack/bolt": "^5.0.0",
+    "@slack/web-api": "^7.8.0",
+    "bullmq": "^5.34.6",
+    "cross-spawn": "^7.0.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "grammy": "^1.31.0",
+    "ioredis": "^5.4.2",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "tree-kill": "^1.2.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@types/cross-spawn": "^6.0.6",
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.18.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.19.1",
+    "vitest": "^2.1.8"
+  }
+}
