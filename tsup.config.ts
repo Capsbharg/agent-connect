@@ -8,7 +8,7 @@ export default defineConfig([
     sourcemap: true,
     clean: true,
     splitting: false,
-    target: 'node24',
+    target: 'node20',
     outDir: 'dist',
   },
   {
@@ -18,7 +18,7 @@ export default defineConfig([
     sourcemap: true,
     clean: false,
     splitting: false,
-    target: 'node24',
+    target: 'node20',
     outDir: 'dist',
     banner: { js: '#!/usr/bin/env node' },
   },

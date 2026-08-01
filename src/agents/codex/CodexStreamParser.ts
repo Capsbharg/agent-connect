@@ -38,7 +38,7 @@ export function translateCodexEvent(json: unknown): CodexTranslated {
       return text ? { answerDelta: text } : {};
     }
 
-    const label = String(item.command ?? item.tool ?? item.name ?? itemType || 'tool');
+    const label = String(item.command ?? item.tool ?? item.name ?? (itemType || 'tool'));
     return { progressLines: [`Using ${label}...`] };
   }
 

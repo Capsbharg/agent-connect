@@ -1,4 +1,4 @@
-import IORedis from 'ioredis';
+import { Redis } from 'ioredis';
 import type { Logger } from '../logger/Logger.js';
 
 /**
@@ -6,8 +6,8 @@ import type { Logger } from '../logger/Logger.js';
  * across blocking and non-blocking commands can deadlock), so this is a
  * factory, not a singleton. RedisStorageProvider gets its own connection too.
  */
-export function createRedisConnection(redisUrl: string, logger: Logger): IORedis {
-  const connection = new IORedis(redisUrl, {
+export function createRedisConnection(redisUrl: string, logger: Logger): Redis {
+  const connection = new Redis(redisUrl, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
   });

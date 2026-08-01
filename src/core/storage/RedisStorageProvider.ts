@@ -1,11 +1,11 @@
-import type IORedis from 'ioredis';
+import type { Redis } from 'ioredis';
 import type { StorageProvider } from '../../interfaces/StorageProvider.js';
 import type { Logger } from '../logger/Logger.js';
 import { createRedisConnection } from './createRedisConnection.js';
 
 /** JSON-over-Redis StorageProvider. Used for ProjectSession in production. */
 export class RedisStorageProvider implements StorageProvider {
-  private readonly redis: IORedis;
+  private readonly redis: Redis;
 
   constructor(redisUrl: string, logger: Logger) {
     this.redis = createRedisConnection(redisUrl, logger);

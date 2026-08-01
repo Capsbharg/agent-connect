@@ -5,7 +5,7 @@
 Mention a bot on Slack or Telegram, pick a project, hand it a task — and watch Claude Code, Cursor, or Codex work in real time, streamed right back into your conversation.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-24.18.0-brightgreen.svg)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Queue: BullMQ](https://img.shields.io/badge/queue-BullMQ-DC382D?logo=redis&logoColor=white)](https://bullmq.io/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
@@ -20,8 +20,6 @@ flowchart LR
 ```
 
 Every messaging platform looks the same to the core. Every AI agent looks the same to the core. Adding a new one of either means implementing a single interface — nothing else changes.
-
-> **Status**: this is a from-scratch TypeScript rewrite of the original single-purpose Slack+Claude bot. The architecture, CLI, and docs described here are complete; if you're setting this up fresh, run through [Quick Start](#quick-start) end-to-end in your own environment and open an issue if anything doesn't match what's described.
 
 ---
 
@@ -70,7 +68,7 @@ Every messaging platform looks the same to the core. Every AI agent looks the sa
 
 Before you start, make sure you have:
 
-1. **Node.js `24.18.0`** — check with `node --version`. ([nodejs.org](https://nodejs.org))
+1. **Node.js `>=20`** — check with `node --version`. ([nodejs.org](https://nodejs.org))
 2. **At least one AI agent CLI**, installed and authenticated:
    - [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) — `npm install -g @anthropic-ai/claude-code`, then `claude` once to log in. Enabled by default.
    - [Cursor CLI](https://cursor.com/docs/cli) (`cursor-agent`) — optional, needs a `CURSOR_API_KEY`.
@@ -84,54 +82,35 @@ Before you start, make sure you have:
 
 ## 🚀 Quick Start
 
-**Step 1 — clone and install:**
+Agent Connect is a normal npm package — install it into any project, no cloning or building required.
+
+**Step 1 — create a project and install the package:**
 
 ```bash
-git clone <this-repo-url> agent-connect
-cd agent-connect
-npm install
-npm run build
+mkdir my-bot && cd my-bot
+npm init -y
+npm install @capsbharg/agent-connect
 ```
 
-**Step 2 — copy the config templates:**
+**Step 2 — get your credentials.** Follow [Creating Your Slack App](#creating-your-slack-app) and/or [Creating Your Telegram Bot](#creating-your-telegram-bot) below — you'll be asked for these in the next step.
+
+**Step 3 — scaffold your config:**
 
 ```bash
-cp .env.example .env
-cp projects.example.json projects.json
+npx @capsbharg/agent-connect init
 ```
 
-**Step 3 — get your credentials.** Follow [Creating Your Slack App](#creating-your-slack-app) and/or [Creating Your Telegram Bot](#creating-your-telegram-bot) below, then paste the tokens into `.env`.
+Interactively asks which platforms/agents to enable, your Slack/Telegram credentials, and your first project's absolute path — then writes `.env`, `projects.json`, and `agent-connect.example.mjs` into the current directory, and automatically runs `doctor` to verify everything (agent CLI(s) on `PATH`, Redis reachable if configured, Slack/Telegram tokens valid).
 
-**Step 4 — register a project.** Edit `projects.json` to map a name to an absolute path on your machine (see [Project Registry](#project-registry)):
-
-```json
-{ "my-app": "/absolute/path/to/my-app" }
-```
-
-**Step 5 — verify your setup:**
+**Step 4 — run it:**
 
 ```bash
-npx @capsbharg/agent-connect doctor
+node agent-connect.example.mjs
 ```
 
-This checks that your agent CLI(s) are on `PATH`, Redis is reachable (if configured), and your Slack/Telegram tokens are valid — fix anything it flags before continuing.
+**Step 5 — try it.** In Slack or Telegram, message the bot: `use my-app`, then give it a task (see [Example Walkthrough](#example-walkthrough)).
 
-**Step 6 — run it.** Either use the bundled example app:
-
-```bash
-cd examples/slack-claude-minimal
-npm install
-npm start
-```
-
-...or generate your own entrypoint from scratch:
-
-```bash
-npx @capsbharg/agent-connect init   # interactively (re)writes .env/projects.json/an example app, then runs doctor
-node your-entrypoint.mjs
-```
-
-**Step 7 — try it.** In Slack or Telegram, message the bot: `use my-app`, then give it a task (see [Example Walkthrough](#example-walkthrough)).
+> 🧪 **Want to see it working end-to-end first?** [`demo/`](demo/) in this repo is a complete, self-contained example — Slack adapter, the real Claude Code agent, a Redis-backed BullMQ queue, and the queue dashboard, all wired together. Copy the folder anywhere, `npm install`, fill in `.env`/`projects.json`, and `npm run slack`.
 
 ---
 
@@ -287,13 +266,13 @@ An agent only ever runs inside a project directory you've explicitly registered 
 
 ## ▶️ Running the Application
 
-For the bundled example (Slack + Claude):
+For the entrypoint `npx @capsbharg/agent-connect init` generated for you:
 
 ```bash
-cd examples/slack-claude-minimal
-npm install
-npm start
+node agent-connect.example.mjs
 ```
+
+For a fuller reference (Slack + real Claude Code agent + Redis-backed queue + dashboard), see [`demo/`](demo/) — self-contained, `npm install` and `npm run slack`.
 
 For your own entrypoint (`AgentConnect.fromEnv()` or explicit DI — see [Public API](#public-api)):
 

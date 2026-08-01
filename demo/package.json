@@ -1,0 +1,14 @@
+{
+  "name": "agent-connect-demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs",
+    "slack": "node slack.mjs"
+  },
+  "dependencies": {
+    "@capsbharg/agent-connect": "^1.0.0",
+    "dotenv": "^17.4.2"
+  }
+}

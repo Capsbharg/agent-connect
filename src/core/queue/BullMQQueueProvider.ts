@@ -1,5 +1,6 @@
-import type IORedis from 'ioredis';
+import type { Redis } from 'ioredis';
 import { Queue, Worker } from 'bullmq';
+import type { Job, JobsOptions } from 'bullmq';
 import type { QueueJobContext, QueueProvider, QueuedJob } from '../../interfaces/QueueProvider.js';
 import type { Logger } from '../logger/Logger.js';
 import { createRedisConnection } from '../storage/createRedisConnection.js';
@@ -15,9 +16,9 @@ const JOB_OPTIONS = {
 /** Production QueueProvider: BullMQ + Redis, with retry/priority/concurrency/cancellation. */
 export class BullMQQueueProvider<T = unknown> implements QueueProvider<T> {
   private readonly queue: Queue<T>;
-  private readonly queueConnection: IORedis;
+  private readonly queueConnection: Redis;
   private worker: Worker<T> | null = null;
-  private workerConnection: IORedis | null = null;
+  private workerConnection: Redis | null = null;
 
   constructor(
     private readonly queueName: string,
@@ -29,7 +30,15 @@ export class BullMQQueueProvider<T = unknown> implements QueueProvider<T> {
   }
 
   async enqueue(payload: T, opts?: { priority?: number }): Promise<{ id: string }> {
-    const job = await this.queue.add('execute', payload, { ...JOB_OPTIONS, priority: opts?.priority });
+    // bullmq infers the job-name type param from T via a deferred conditional
+    // (ExtractNameType<T, string>), which never resolves for an unconstrained
+    // generic T — cast .add to the shape it actually has at runtime (string name).
+    const add = this.queue.add.bind(this.queue) as unknown as (
+      name: string,
+      data: T,
+      opts?: JobsOptions,
+    ) => Promise<Job<T, unknown, string>>;
+    const job = await add('execute', payload, { ...JOB_OPTIONS, priority: opts?.priority });
     return { id: job.id ?? '' };
   }
 
