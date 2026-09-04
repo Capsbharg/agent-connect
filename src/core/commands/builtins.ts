@@ -51,7 +51,9 @@ export function registerBuiltinCommands(registry: CommandRegistry, deps: Builtin
     async (arg, ctx) => {
       const name = arg.trim();
       if (!name) {
-        await ctx.responder.post({ text: 'Usage: `use <project>`. Run `projects` to see available options.' });
+        await ctx.responder.post({
+          text: 'Usage: `use <project>`. Run `projects` to see available options.',
+        });
         return;
       }
       if (!projectRegistry.isValid(name)) {
@@ -59,7 +61,9 @@ export function registerBuiltinCommands(registry: CommandRegistry, deps: Builtin
         await ctx.responder.post({
           text:
             `Unknown project "${name}".` +
-            (names.length ? `\nAvailable projects: ${names.join(', ')}` : '\nNo projects are configured.'),
+            (names.length
+              ? `\nAvailable projects: ${names.join(', ')}`
+              : '\nNo projects are configured.'),
         });
         return;
       }
@@ -72,7 +76,9 @@ export function registerBuiltinCommands(registry: CommandRegistry, deps: Builtin
 
   registry.register('agents', 'list available agents', async (_arg, ctx) => {
     const names = agentRegistry.list().map((agent) => agent.name);
-    await ctx.responder.post({ text: `*Available agents*\n${names.map((n) => `- ${n}`).join('\n')}` });
+    await ctx.responder.post({
+      text: `*Available agents*\n${names.map((n) => `- ${n}`).join('\n')}`,
+    });
   });
 
   registry.register(
@@ -88,7 +94,9 @@ export function registerBuiltinCommands(registry: CommandRegistry, deps: Builtin
         return;
       }
       if (!agentRegistry.has(name)) {
-        await ctx.responder.post({ text: `Unknown agent "${name}". Run \`agents\` to see available options.` });
+        await ctx.responder.post({
+          text: `Unknown agent "${name}". Run \`agents\` to see available options.`,
+        });
         return;
       }
       await agentRegistry.setActiveAgent(ctx.identity.id, name);
@@ -106,35 +114,100 @@ export function registerBuiltinCommands(registry: CommandRegistry, deps: Builtin
       return;
     }
     const lines: string[] = [];
-    if (active) lines.push(`Running execution ${active.jobId}.`);
-    if (waiting.length > 0) lines.push(`${waiting.length} execution(s) queued.`);
+    if (active) lines.push(`Running execution \`${active.jobId}\`.`);
+    if (waiting.length > 0) {
+      lines.push(
+        `${waiting.length} execution(s) queued: ${waiting.map((job) => `\`${job.id}\``).join(', ')}.`,
+      );
+    }
+    lines.push('Use `cancel <id>` to cancel one, or `cancel` with no id to stop/clear everything.');
     await ctx.responder.post({ text: lines.join('\n') });
   });
 
-  registry.register('cancel', 'stop your running execution and clear your queued ones', async (_arg, ctx) => {
-    const active = activeExecutions.get(ctx.identity.id);
-    if (active) active.cancel();
+  registry.register(
+    'cancel',
+    'stop your running execution and clear your queued ones, or `cancel <id>` to cancel just one (see `status`)',
+    async (arg, ctx) => {
+      const jobId = arg.trim();
 
-    const waiting = await queue.listPending((payload) => payload.identityId === ctx.identity.id);
-    await Promise.all(
-      waiting.map((job) =>
-        queue.cancel(job.id).catch((error: unknown) => {
-          logger.error(`Failed to cancel queued execution ${job.id}`, {
+      if (jobId) {
+        const active = activeExecutions.get(ctx.identity.id);
+        if (active && active.jobId === jobId) {
+          active.cancel();
+          await ctx.responder.post({ text: `Stopped running execution \`${jobId}\`.` });
+          return;
+        }
+
+        const waiting = await queue.listPending(
+          (payload) => payload.identityId === ctx.identity.id,
+        );
+        const match = waiting.find((job) => job.id === jobId);
+        if (!match) {
+          await ctx.responder.post({
+            text: `No running or queued execution \`${jobId}\` found for you. Run \`status\` to see your executions.`,
+          });
+          return;
+        }
+
+        await queue.cancel(jobId).catch((error: unknown) => {
+          logger.error(`Failed to cancel queued execution ${jobId}`, {
             error: error instanceof Error ? error.message : String(error),
           });
-        }),
-      ),
-    );
+        });
+        await ctx.responder.post({ text: `Cancelled queued execution \`${jobId}\`.` });
+        return;
+      }
 
-    if (!active && waiting.length === 0) {
-      await ctx.responder.post({ text: 'Nothing to cancel.' });
-      return;
-    }
-    const parts: string[] = [];
-    if (active) parts.push('Stopped your running execution.');
-    if (waiting.length > 0) parts.push(`Cleared ${waiting.length} queued execution(s).`);
-    await ctx.responder.post({ text: parts.join(' ') });
-  });
+      const active = activeExecutions.get(ctx.identity.id);
+      if (active) active.cancel();
+
+      const waiting = await queue.listPending((payload) => payload.identityId === ctx.identity.id);
+      await Promise.all(
+        waiting.map((job) =>
+          queue.cancel(job.id).catch((error: unknown) => {
+            logger.error(`Failed to cancel queued execution ${job.id}`, {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }),
+        ),
+      );
+
+      if (!active && waiting.length === 0) {
+        await ctx.responder.post({ text: 'Nothing to cancel.' });
+        return;
+      }
+      const parts: string[] = [];
+      if (active) parts.push('Stopped your running execution.');
+      if (waiting.length > 0) parts.push(`Cleared ${waiting.length} queued execution(s).`);
+      await ctx.responder.post({ text: parts.join(' ') });
+    },
+    { takesArg: true },
+  );
+
+  registry.register(
+    'health',
+    "check every registered agent's CLI/availability",
+    async (_arg, ctx) => {
+      const results = await Promise.all(
+        agentRegistry.list().map(async (agent) => {
+          try {
+            const status = await agent.healthCheck();
+            return { name: agent.name, ...status };
+          } catch (error) {
+            return {
+              name: agent.name,
+              healthy: false,
+              message: error instanceof Error ? error.message : String(error),
+            };
+          }
+        }),
+      );
+      const lines = results.map(
+        (r) => `${r.healthy ? '✅' : '❌'} ${r.name}${r.message ? ` — ${r.message}` : ''}`,
+      );
+      await ctx.responder.post({ text: `*Agent health*\n${lines.join('\n')}` });
+    },
+  );
 
   registry.register('clear', 'clear your active project selection', async (_arg, ctx) => {
     await projectSession.clear(ctx.identity.id);

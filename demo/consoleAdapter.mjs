@@ -32,7 +32,8 @@ export class ConsoleAdapter {
 
   /** Test-only helper: feeds one inbound message through the pipeline as if a user sent it. */
   async simulateMessage(text, overrides = {}) {
-    if (!this.#handler) throw new Error('ConsoleAdapter: start() the app before simulating messages.');
+    if (!this.#handler)
+      throw new Error('ConsoleAdapter: start() the app before simulating messages.');
     console.log(`\n> ${text}`);
     await this.#handler({
       platform: 'console',

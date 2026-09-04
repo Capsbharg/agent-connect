@@ -17,7 +17,9 @@ const claude = new ClaudeAgent({ cliPath: 'claude', timeoutMs: 600_000 });
 const health = await claude.healthCheck();
 if (!health.healthy) {
   console.warn(`[warn] claude CLI health check failed: ${health.message ?? 'unknown reason'}`);
-  console.warn('[warn] Make sure `claude` is on PATH and that you have run `claude` once to log in.');
+  console.warn(
+    '[warn] Make sure `claude` is on PATH and that you have run `claude` once to log in.',
+  );
 }
 
 const app = new AgentConnect({
@@ -26,7 +28,10 @@ const app = new AgentConnect({
   storage: new RedisStorageProvider(REDIS_URL, logger),
   queue: new BullMQQueueProvider('agent-connect-demo', REDIS_URL, logger),
   admin: { enabled: true, port: ADMIN_PORT },
-  projectsConfigPath: new URL('./projects.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'),
+  projectsConfigPath: new URL('./projects.json', import.meta.url).pathname.replace(
+    /^\/([A-Za-z]:)/,
+    '$1',
+  ),
 });
 
 process.on('SIGINT', () => void app.stop().then(() => process.exit(0)));
@@ -34,6 +39,8 @@ process.on('SIGTERM', () => void app.stop().then(() => process.exit(0)));
 
 await app.start();
 console.log('\n=== Connected to Slack (Socket Mode) ===');
-console.log('DM the bot, or mention it in a channel it\'s in. Try: "use demo", then give it a task.');
+console.log(
+  'DM the bot, or mention it in a channel it\'s in. Try: "use demo", then give it a task.',
+);
 console.log(`Queue dashboard: http://127.0.0.1:${ADMIN_PORT}/admin/queues`);
 console.log('Press Ctrl+C to stop.\n');

@@ -65,7 +65,12 @@ function renderEnv(opts: RenderEnvOptions): string {
     );
   }
   if (opts.platforms.includes('telegram')) {
-    lines.push(`TELEGRAM_BOT_TOKEN=${opts.telegram.botToken}`, 'TELEGRAM_EDIT_THROTTLE_MS=1500', 'TELEGRAM_PROGRESS_MAX_LINES=12', '');
+    lines.push(
+      `TELEGRAM_BOT_TOKEN=${opts.telegram.botToken}`,
+      'TELEGRAM_EDIT_THROTTLE_MS=1500',
+      'TELEGRAM_PROGRESS_MAX_LINES=12',
+      '',
+    );
   }
 
   lines.push(
@@ -97,7 +102,10 @@ export async function runInit(): Promise<void> {
   const examplePath = path.join(cwd, 'agent-connect.example.mjs');
 
   if (fs.existsSync(envPath)) {
-    const overwrite = await clack.confirm({ message: '.env already exists. Overwrite it?', initialValue: false });
+    const overwrite = await clack.confirm({
+      message: '.env already exists. Overwrite it?',
+      initialValue: false,
+    });
     if (clack.isCancel(overwrite) || !overwrite) {
       clack.outro('Left .env untouched.');
       return;
@@ -149,7 +157,11 @@ export async function runInit(): Promise<void> {
   const projectPath = await requiredText(`Absolute path to "${projectName}"`, cwd);
 
   fs.writeFileSync(envPath, renderEnv({ platforms, agents, slack, telegram, redisUrl }), 'utf8');
-  fs.writeFileSync(projectsPath, `${JSON.stringify({ [projectName]: projectPath }, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(
+    projectsPath,
+    `${JSON.stringify({ [projectName]: projectPath }, null, 2)}\n`,
+    'utf8',
+  );
   fs.writeFileSync(examplePath, EXAMPLE_APP, 'utf8');
 
   clack.outro(

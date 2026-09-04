@@ -9,7 +9,9 @@ describe('translateClaudeEvent', () => {
   it('turns a tool_use block into a human-readable progress line', () => {
     const result = translateClaudeEvent({
       type: 'assistant',
-      message: { content: [{ type: 'tool_use', name: 'Read', input: { file_path: 'src/foo.ts' } }] },
+      message: {
+        content: [{ type: 'tool_use', name: 'Read', input: { file_path: 'src/foo.ts' } }],
+      },
     });
     expect(result.progressLines).toEqual(['Reading `src/foo.ts`...']);
   });
@@ -45,7 +47,12 @@ describe('translateClaudeEvent', () => {
   });
 
   it('extracts the final answer from a successful result event', () => {
-    const result = translateClaudeEvent({ type: 'result', subtype: 'success', is_error: false, result: 'All done.' });
+    const result = translateClaudeEvent({
+      type: 'result',
+      subtype: 'success',
+      is_error: false,
+      result: 'All done.',
+    });
     expect(result.final).toEqual({
       success: true,
       outputText: 'All done.',
@@ -55,7 +62,12 @@ describe('translateClaudeEvent', () => {
   });
 
   it('marks a result event as failed when is_error is set', () => {
-    const result = translateClaudeEvent({ type: 'result', subtype: 'success', is_error: true, result: '' });
+    const result = translateClaudeEvent({
+      type: 'result',
+      subtype: 'success',
+      is_error: true,
+      result: '',
+    });
     expect(result.final?.success).toBe(false);
   });
 

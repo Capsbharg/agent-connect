@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { AgentRegistry } from '../../../src/core/agentRegistry/AgentRegistry.js';
 import { CommandRegistry } from '../../../src/core/commands/CommandRegistry.js';
 import { EventBus } from '../../../src/core/events/EventBus.js';
+import { ActiveExecutionRegistry } from '../../../src/core/execution/ActiveExecutionRegistry.js';
 import { InMemoryQueueProvider } from '../../../src/core/queue/InMemoryQueueProvider.js';
 import { ProjectSession } from '../../../src/core/project/ProjectSession.js';
 import { Router } from '../../../src/core/router/Router.js';
@@ -33,18 +34,25 @@ function baseMessage(text: string): InboundMessage {
   return { platform: 'test', platformUserId: 'U1', channelId: 'C1', isDirect: true, text, raw: {} };
 }
 
-function setup(opts: { authFails?: boolean; authorized?: boolean } = {}) {
+function setup(
+  opts: { authFails?: boolean; authorized?: boolean; maxQueuedPerIdentity?: number } = {},
+) {
   const storage = new InMemoryStorageProvider();
   const projectSession = new ProjectSession(storage);
   const agentRegistry = new AgentRegistry([fakeAgent], 'claude', storage);
   const queue = new InMemoryQueueProvider<ExecutionJobPayload>();
+  const activeExecutions = new ActiveExecutionRegistry();
   const events = new EventBus(createTestLogger());
   const commands = new CommandRegistry();
   commands.register('help', 'show help', async (_arg, ctx) => {
     await ctx.responder.post({ text: 'help text' });
   });
 
-  const responder = { post: vi.fn(async () => {}), update: vi.fn(async () => {}), complete: vi.fn(async () => {}) };
+  const responder = {
+    post: vi.fn(async () => {}),
+    update: vi.fn(async () => {}),
+    complete: vi.fn(async () => {}),
+  };
   let handler: ((message: InboundMessage) => void | Promise<void>) | null = null;
   const adapter: MessagingAdapter = {
     platform: 'test',
@@ -73,8 +81,10 @@ function setup(opts: { authFails?: boolean; authorized?: boolean } = {}) {
     projectSession,
     agentRegistry,
     queue,
+    activeExecutions,
     events,
     logger: createTestLogger(),
+    maxQueuedPerIdentity: opts.maxQueuedPerIdentity,
   });
   router.attach();
 
@@ -83,6 +93,7 @@ function setup(opts: { authFails?: boolean; authorized?: boolean } = {}) {
     responder,
     queue,
     projectSession,
+    activeExecutions,
     emit: (message: InboundMessage) => handler?.(message),
   };
 }
@@ -124,6 +135,49 @@ describe('Router', () => {
     expect(pending).toHaveLength(1);
     expect(pending[0]?.payload.prompt).toBe('do something');
     expect(pending[0]?.payload.projectName).toBe('demo');
-    expect(responder.post).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Got it') }));
+    expect(responder.post).toHaveBeenCalledWith(
+      expect.objectContaining({ text: expect.stringContaining('Got it') }),
+    );
+  });
+
+  it('rejects a new prompt once maxQueuedPerIdentity is reached, without touching the queue', async () => {
+    const { emit, responder, queue, projectSession } = setup({ maxQueuedPerIdentity: 1 });
+    await projectSession.setActiveProject('test:U1', 'demo', '/tmp/demo');
+
+    await emit(baseMessage('first prompt'));
+    await emit(baseMessage('second prompt'));
+
+    const pending = await queue.listPending();
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.payload.prompt).toBe('first prompt');
+    expect(responder.post).toHaveBeenLastCalledWith(
+      expect.objectContaining({ text: expect.stringContaining('max 1') }),
+    );
+  });
+
+  it('counts a currently-running execution toward the limit, not just queued ones', async () => {
+    const { emit, responder, queue, projectSession, activeExecutions } = setup({
+      maxQueuedPerIdentity: 1,
+    });
+    await projectSession.setActiveProject('test:U1', 'demo', '/tmp/demo');
+    activeExecutions.register('test:U1', 'job-1', () => {});
+
+    await emit(baseMessage('a new prompt'));
+
+    expect(await queue.listPending()).toHaveLength(0);
+    expect(responder.post).toHaveBeenCalledWith(
+      expect.objectContaining({ text: expect.stringContaining('running/queued') }),
+    );
+  });
+
+  it('does not enforce a limit when maxQueuedPerIdentity is undefined', async () => {
+    const { emit, queue, projectSession } = setup();
+    await projectSession.setActiveProject('test:U1', 'demo', '/tmp/demo');
+
+    await emit(baseMessage('first'));
+    await emit(baseMessage('second'));
+    await emit(baseMessage('third'));
+
+    expect(await queue.listPending()).toHaveLength(3);
   });
 });

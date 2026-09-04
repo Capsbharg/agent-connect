@@ -5,6 +5,7 @@ import type { MessagingAdapter } from '../../interfaces/MessagingAdapter.js';
 import type { QueueProvider } from '../../interfaces/QueueProvider.js';
 import type { AgentRegistry } from '../agentRegistry/AgentRegistry.js';
 import type { CommandRegistry } from '../commands/CommandRegistry.js';
+import type { ActiveExecutionRegistry } from '../execution/ActiveExecutionRegistry.js';
 import type { Logger } from '../logger/Logger.js';
 import type { ProjectSession } from '../project/ProjectSession.js';
 import type { ExecutionJobPayload, InboundMessage } from '../types.js';
@@ -17,8 +18,11 @@ export interface RouterOptions {
   projectSession: ProjectSession;
   agentRegistry: AgentRegistry;
   queue: QueueProvider<ExecutionJobPayload>;
+  activeExecutions: ActiveExecutionRegistry;
   events: EventPublisher;
   logger: Logger;
+  /** Max executions (running + queued) a single identity may have outstanding at once. Undefined = unlimited. */
+  maxQueuedPerIdentity?: number;
 }
 
 /**
@@ -37,8 +41,18 @@ export class Router {
   }
 
   private async handleMessage(message: InboundMessage): Promise<void> {
-    const { authentication, authorization, commands, projectSession, agentRegistry, queue, events, logger } =
-      this.opts;
+    const {
+      authentication,
+      authorization,
+      commands,
+      projectSession,
+      agentRegistry,
+      queue,
+      activeExecutions,
+      events,
+      logger,
+      maxQueuedPerIdentity,
+    } = this.opts;
 
     await events.emit('beforeMessage', { message });
 
@@ -55,7 +69,10 @@ export class Router {
       isGroup: message.isGroup,
     });
     if (!allowed) {
-      logger.warn('Rejected message: not authorized', { identityId: identity.id, channelId: message.channelId });
+      logger.warn('Rejected message: not authorized', {
+        identityId: identity.id,
+        channelId: message.channelId,
+      });
       await events.emit('afterMessage', { message, identity });
       return;
     }
@@ -69,9 +86,15 @@ export class Router {
     const parsed = commands.parse(message.text);
 
     if (parsed.type === 'command') {
-      const handled = await commands.execute(parsed.name, parsed.arg, { identity, message, responder });
+      const handled = await commands.execute(parsed.name, parsed.arg, {
+        identity,
+        message,
+        responder,
+      });
       if (!handled) {
-        logger.warn(`Parsed command "${parsed.name}" had no registered handler`, { identityId: identity.id });
+        logger.warn(`Parsed command "${parsed.name}" had no registered handler`, {
+          identityId: identity.id,
+        });
       }
       await events.emit('afterMessage', { message, identity });
       return;
@@ -84,6 +107,18 @@ export class Router {
       });
       await events.emit('afterMessage', { message, identity });
       return;
+    }
+
+    if (maxQueuedPerIdentity !== undefined) {
+      const outstanding = await queue.listPending((p) => p.identityId === identity.id);
+      const running = activeExecutions.get(identity.id) ? 1 : 0;
+      if (outstanding.length + running >= maxQueuedPerIdentity) {
+        await responder.post({
+          text: `You already have ${outstanding.length + running} execution(s) running/queued (max ${maxQueuedPerIdentity}). Wait for one to finish, or run \`cancel\` first.`,
+        });
+        await events.emit('afterMessage', { message, identity });
+        return;
+      }
     }
 
     const payload: ExecutionJobPayload = {
@@ -100,12 +135,16 @@ export class Router {
     };
 
     await queue.enqueue(payload);
-    await responder.post({ text: `Got it — working on: ${parsed.text}\nI'll keep you posted as I go.` });
+    await responder.post({
+      text: `Got it — working on: ${parsed.text}\nI'll keep you posted as I go.`,
+    });
     await events.emit('afterMessage', { message, identity });
   }
 
   private getAdapter(platform: string): MessagingAdapter {
-    const adapter = this.opts.messagingAdapters.find((candidate) => candidate.platform === platform);
+    const adapter = this.opts.messagingAdapters.find(
+      (candidate) => candidate.platform === platform,
+    );
     if (!adapter) {
       throw new Error(`No messaging adapter registered for platform "${platform}"`);
     }

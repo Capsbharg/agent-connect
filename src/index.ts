@@ -84,7 +84,12 @@ export { createLogger } from './core/logger/createLogger.js';
 export type { Logger } from './core/logger/Logger.js';
 
 // --- Errors --------------------------------------------------------------
-export { AgentConnectError, ConfigError, ProjectNotFoundError, AgentNotFoundError } from './core/errors.js';
+export {
+  AgentConnectError,
+  ConfigError,
+  ProjectNotFoundError,
+  AgentNotFoundError,
+} from './core/errors.js';
 
 // --- Advanced/testing building blocks (used when assembling a custom app) --
 export { ProjectRegistry } from './core/project/ProjectRegistry.js';

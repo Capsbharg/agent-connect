@@ -4,6 +4,7 @@
 
 Mention a bot on Slack or Telegram, pick a project, hand it a task — and watch Claude Code, Cursor, or Codex work in real time, streamed right back into your conversation.
 
+[![CI](https://github.com/Capsbharg/agent-connect/actions/workflows/ci.yml/badge.svg)](https://github.com/Capsbharg/agent-connect/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -55,7 +56,9 @@ Every messaging platform looks the same to the core. Every AI agent looks the sa
 - 🌐 **Multi-platform** — Slack and Telegram today, behind the same `MessagingAdapter` interface WhatsApp/Discord/Teams/etc. would use
 - 📡 **Live streaming** — progress streams into a single, continuously-updated message — no spam
 - 🚦 **Queued & serialized** — one execution per user at a time; extra prompts queue up automatically via BullMQ (or in-memory for local dev)
-- ⛔ **Cancellable** — stop a running execution (and clear anything queued) with a single command
+- ⛔ **Cancellable** — stop everything with `cancel`, or a single execution by id with `cancel <id>` (`status` lists ids)
+- 🩺 **Health-checked** — every agent's CLI availability is checked on startup, via `agent-connect doctor`, and via the `health` chat command
+- 🚧 **Flood-guarded** — `MAX_QUEUED_PER_IDENTITY` caps how many executions one user can have outstanding at once
 - 🧩 **Plugin system** — hook `beforeMessage`/`afterMessage`/`beforeExecution`/`afterExecution`/`beforeReply`/`afterReply` and register new commands, without touching core
 - 🔒 **Safe by construction** — projects are an exact allowlist (no path traversal), every agent CLI is `spawn`ed with an argv array (never a shell string), executions are timeout-bounded
 - 🛠️ **CLI** — `npx @capsbharg/agent-connect init` scaffolds `.env`/`projects.json`/an example app; `npx @capsbharg/agent-connect doctor` verifies your setup
@@ -134,11 +137,11 @@ Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** �
 
 **Features → OAuth & Permissions → Scopes → Bot Token Scopes** → add:
 
-| Scope | Why |
-| --- | --- |
-| `app_mentions:read` | See messages that `@mention` the bot |
-| `chat:write` | Post and edit messages (how streaming progress works) |
-| `im:history` | Receive DMs sent directly to the bot |
+| Scope               | Why                                                   |
+| ------------------- | ----------------------------------------------------- |
+| `app_mentions:read` | See messages that `@mention` the bot                  |
+| `chat:write`        | Post and edit messages (how streaming progress works) |
+| `im:history`        | Receive DMs sent directly to the bot                  |
 
 <details>
 <summary>Optional: respond to plain messages in channels (not just mentions)</summary>
@@ -156,11 +159,11 @@ Add `channels:history` (public channels), `groups:history` (private channels), a
 
 ### 6️⃣ Collect your credentials
 
-| Value | Where to find it | Goes in |
-| --- | --- | --- |
-| Bot User OAuth Token (`xoxb-...`) | OAuth & Permissions → top of page | `SLACK_BOT_TOKEN` |
-| Signing Secret | Basic Information → App Credentials | `SLACK_SIGNING_SECRET` |
-| App-Level Token (`xapp-...`) | From step 2 | `SLACK_APP_TOKEN` |
+| Value                             | Where to find it                    | Goes in                |
+| --------------------------------- | ----------------------------------- | ---------------------- |
+| Bot User OAuth Token (`xoxb-...`) | OAuth & Permissions → top of page   | `SLACK_BOT_TOKEN`      |
+| Signing Secret                    | Basic Information → App Credentials | `SLACK_SIGNING_SECRET` |
+| App-Level Token (`xapp-...`)      | From step 2                         | `SLACK_APP_TOKEN`      |
 
 ### 7️⃣ Say hello 👋
 
@@ -202,11 +205,13 @@ At least one agent must be enabled. You can enable more than one — each user p
 npm install -g @anthropic-ai/claude-code
 claude   # run once interactively to authenticate
 ```
+
 `.env`: `CLAUDE_ENABLED=true` (default), `CLAUDE_CLI_PATH=claude` (default, or an absolute path).
 
 ### Cursor CLI (optional)
 
 Install per [Cursor's CLI docs](https://cursor.com/docs/cli), then set in `.env`:
+
 ```
 CURSOR_ENABLED=true
 CURSOR_API_KEY=your-cursor-api-key
@@ -215,6 +220,7 @@ CURSOR_API_KEY=your-cursor-api-key
 ### OpenAI Codex CLI (optional)
 
 Install per [OpenAI's Codex CLI docs](https://developers.openai.com/codex), then set in `.env`:
+
 ```
 CODEX_ENABLED=true
 ```
@@ -229,17 +235,20 @@ Run `npx @capsbharg/agent-connect doctor` after any of the above to confirm the 
 
 The full, current list — with defaults and descriptions — lives in [`.env.example`](.env.example). Highlights:
 
-| Variable | Description |
-| --- | --- |
-| `REDIS_URL` | Redis connection string; unset falls back to in-memory storage/queue (dev only) |
-| `PROJECTS_CONFIG_PATH` | Path to the project registry JSON file (default `./projects.json`) |
-| `DEFAULT_AGENT` | Which registered agent handles a user's prompts until they run `agent <name>` |
-| `AGENT_WORKER_CONCURRENCY` | Max executions processed concurrently across all users (default `4`) |
-| `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` / `SLACK_APP_TOKEN` | Enable the Slack adapter |
-| `TELEGRAM_BOT_TOKEN` | Enable the Telegram adapter |
-| `CLAUDE_ENABLED` / `CURSOR_ENABLED` / `CODEX_ENABLED` | Enable each agent (Claude is on by default) |
-| `ALLOWED_USERS` / `ALLOWED_CHANNELS` / `ALLOWED_GROUPS` | Security allowlists (comma-separated; empty = unrestricted) |
-| `ADMIN_ENABLED` / `ADMIN_PORT` | Optional queue dashboard (default on, port `3000`) |
+| Variable                                                       | Description                                                                                                                                          |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REDIS_URL`                                                    | Redis connection string; unset falls back to in-memory storage/queue (dev only)                                                                      |
+| `PROJECTS_CONFIG_PATH`                                         | Path to the project registry JSON file (default `./projects.json`)                                                                                   |
+| `DEFAULT_AGENT`                                                | Which registered agent handles a user's prompts until they run `agent <name>`                                                                        |
+| `AGENT_WORKER_CONCURRENCY`                                     | Max executions processed concurrently across all users (default `4`)                                                                                 |
+| `MAX_QUEUED_PER_IDENTITY`                                      | Max executions (running + queued) a single user may have outstanding at once; further prompts get a reminder instead (default `20`, `0` = unlimited) |
+| `REDIS_KEY_PREFIX`                                             | Namespaces every Redis key this app owns — set it if `REDIS_URL` points at a Redis instance shared with other apps                                   |
+| `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` / `SLACK_APP_TOKEN` | Enable the Slack adapter                                                                                                                             |
+| `TELEGRAM_BOT_TOKEN`                                           | Enable the Telegram adapter                                                                                                                          |
+| `CLAUDE_ENABLED` / `CURSOR_ENABLED` / `CODEX_ENABLED`          | Enable each agent (Claude is on by default)                                                                                                          |
+| `CLAUDE_SKIP_PERMISSIONS` / `CURSOR_FORCE`                     | Run the CLI headless, bypassing its own per-action confirmation (default `true` for both — see [Security Notes](#security-notes))                    |
+| `ALLOWED_USERS` / `ALLOWED_CHANNELS` / `ALLOWED_GROUPS`        | Security allowlists (comma-separated; empty = unrestricted — logged loudly as a warning on startup)                                                  |
+| `ADMIN_ENABLED` / `ADMIN_PORT`                                 | Optional queue dashboard (default on, port `3000`)                                                                                                   |
 
 🔐 Never commit `.env` — it's already excluded via `.gitignore`.
 
@@ -299,17 +308,18 @@ Stop it with `Ctrl+C` (`SIGINT`) — the example entrypoint handles graceful shu
 
 Send these as a Slack mention/DM, or a Telegram message/`/command`. Anything else is treated as a prompt and sent to your active agent.
 
-| Command | Description |
-| --- | --- |
-| 🆘 `help` | List available commands |
-| 📂 `projects` | List projects available in the registry |
-| 📍 `current` | Show your currently active project |
-| 🔀 `use <project>` | Switch your active project |
-| 🤖 `agents` | List registered agents |
-| 🔁 `agent [name]` | Show or switch which agent handles your prompts |
-| 📊 `status` | Show your running/queued executions |
-| ⛔ `cancel` | Stop your running execution and clear your queued ones |
-| 🧹 `clear` | Clear your active project selection |
+| Command            | Description                                                              |
+| ------------------ | ------------------------------------------------------------------------ |
+| 🆘 `help`          | List available commands                                                  |
+| 📂 `projects`      | List projects available in the registry                                  |
+| 📍 `current`       | Show your currently active project                                       |
+| 🔀 `use <project>` | Switch your active project                                               |
+| 🤖 `agents`        | List registered agents                                                   |
+| 🔁 `agent [name]`  | Show or switch which agent handles your prompts                          |
+| 📊 `status`        | Show your running/queued executions (with their ids)                     |
+| ⛔ `cancel [id]`   | Stop/clear everything, or cancel just one execution by id (see `status`) |
+| 🩺 `health`        | Check every registered agent's CLI/availability                          |
+| 🧹 `clear`         | Clear your active project selection                                      |
 
 Each user's active project/agent is stored independently and survives a restart. A prompt sent with no active project gets a reminder to run `use <project>` first. Plugins can register additional commands — see [docs/plugin-guide.md](docs/plugin-guide.md).
 
@@ -346,7 +356,14 @@ Only one execution runs per user at a time — additional prompts from the same 
 ## 🧩 Public API
 
 ```js
-import { AgentConnect, SlackAdapter, TelegramAdapter, ClaudeAgent, CursorAgent, CodexAgent } from '@capsbharg/agent-connect';
+import {
+  AgentConnect,
+  SlackAdapter,
+  TelegramAdapter,
+  ClaudeAgent,
+  CursorAgent,
+  CodexAgent,
+} from '@capsbharg/agent-connect';
 
 const app = new AgentConnect({
   messaging: [new SlackAdapter(), new TelegramAdapter()],
@@ -373,11 +390,11 @@ See [docs/developer-guide.md](docs/developer-guide.md) for the full options refe
 
 ## 🛠️ CLI Reference
 
-| Command | What it does |
-| --- | --- |
-| `npx @capsbharg/agent-connect init` | Interactively writes `.env`, `projects.json`, and an example entrypoint into the current directory, then runs `doctor` |
+| Command                               | What it does                                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx @capsbharg/agent-connect init`   | Interactively writes `.env`, `projects.json`, and an example entrypoint into the current directory, then runs `doctor`                |
 | `npx @capsbharg/agent-connect doctor` | Checks agent CLIs are on `PATH` (`--version`), pings Redis if configured, and validates Slack (`auth.test`)/Telegram (`getMe`) tokens |
-| `npx @capsbharg/agent-connect --help` | Show usage |
+| `npx @capsbharg/agent-connect --help` | Show usage                                                                                                                            |
 
 ---
 
@@ -407,11 +424,15 @@ Clean Architecture, SOLID, dependency injection, adapter pattern — every messa
 
 ## 🔒 Security Notes
 
+- **Agents run headless, with no per-action confirmation.** `ClaudeAgent` always passes `--dangerously-skip-permissions` and `CursorAgent` always passes `--force` by default (`CLAUDE_SKIP_PERMISSIONS` / `CURSOR_FORCE`, both default `true`) — this is what lets them respond to a chat message without a human watching a terminal to approve each file write/command. It also means **any user who is authorized to prompt the bot can direct arbitrary file writes and shell command execution inside whichever project is active**, with no human-in-the-loop gate after that point. `CodexAgent` is comparatively safer by default (`--sandbox workspace-write`).
+- **`ALLOWED_USERS`/`ALLOWED_CHANNELS`/`ALLOWED_GROUPS` are the actual restriction, not headless mode.** Leave them blank and _everyone_ who can message the bot (every member of the Slack workspace/Telegram chat it's in) gets the access described above, to every registered project. AgentConnect logs a loud startup warning when all three are empty — set at least `ALLOWED_USERS` before anything beyond solo/local use.
 - `projects.json` and `.env` are both gitignored — they hold your real local paths and platform credentials respectively. Never commit them or paste their contents into an issue/PR.
 - Only entries in your own `projects.json` are ever reachable; `use <project>` matches project names as an exact allowlist lookup, never as a filesystem path built from user input.
 - Every agent CLI is always launched via `spawn` with an argv array — never a shell string — so prompts can never be interpreted as shell commands.
+- `MAX_QUEUED_PER_IDENTITY` (default `20`) caps how many executions a single user can have running/queued at once, so one user flooding the bot with prompts can't monopolize every worker slot.
+- `REDIS_KEY_PREFIX` namespaces this app's keys if you point `REDIS_URL` at a Redis instance shared with other applications.
 - The admin dashboard (`/admin/queues`) is bound to `127.0.0.1` and has no authentication of its own — don't expose it beyond localhost.
-- Use `ALLOWED_USERS`/`ALLOWED_CHANNELS`/`ALLOWED_GROUPS` to restrict who can reach the bot at all once you're beyond solo/local use.
+- Found a vulnerability? See [SECURITY.md](SECURITY.md) for how to report it.
 
 ---
 
@@ -427,4 +448,4 @@ Clean Architecture, SOLID, dependency injection, adapter pattern — every messa
 
 ## 🤝 Contributing
 
-Issues and PRs welcome! Adding a new messaging platform or AI agent should only ever require implementing `MessagingAdapter` or `AgentAdapter` (see `src/interfaces/`) — if a contribution needs to touch `core/router`, `core/execution`, or `core/commands` to add a platform/agent, something's off with the abstraction.
+Issues and PRs welcome! Adding a new messaging platform or AI agent should only ever require implementing `MessagingAdapter` or `AgentAdapter` (see `src/interfaces/`) — if a contribution needs to touch `core/router`, `core/execution`, or `core/commands` to add a platform/agent, something's off with the abstraction. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow (setup, tests, lint, PR checklist) and [SECURITY.md](SECURITY.md) to report a vulnerability privately.

@@ -26,12 +26,16 @@ export interface TelegramConfig {
 export interface ClaudeConfig {
   cliPath: string;
   timeoutMs: number;
+  /** Passes `--dangerously-skip-permissions` to run headless. Defaults to true — set to false to require the CLI's own per-action confirmation (only meaningful if you run the CLI in a context that can prompt). */
+  dangerouslySkipPermissions: boolean;
 }
 
 export interface CursorConfig {
   cliPath: string;
   apiKey?: string;
   timeoutMs: number;
+  /** Passes `--force` to run headless. Defaults to true — set to false to require the CLI's own per-action confirmation. */
+  force: boolean;
 }
 
 export interface CodexConfig {
@@ -47,9 +51,13 @@ export interface CodexConfig {
 export interface ResolvedConfig {
   logLevel: string;
   redisUrl?: string;
+  /** Prefixes every Redis key this app owns (session storage, and BullMQ's own queue keys) — set when a Redis instance is shared with other apps to avoid key collisions. */
+  redisKeyPrefix?: string;
   projectsConfigPath: string;
   defaultAgent: string;
   agentWorkerConcurrency: number;
+  /** Max executions (running + queued) a single identity may have outstanding at once; further prompts are rejected with a reminder instead of queuing indefinitely. 0 = unlimited. */
+  maxQueuedPerIdentity: number;
   admin: AdminConfig;
   security: SecurityConfig;
   slack?: SlackConfig;

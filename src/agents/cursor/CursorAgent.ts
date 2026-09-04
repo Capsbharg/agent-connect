@@ -2,7 +2,11 @@ import type { AgentAdapter } from '../../interfaces/AgentAdapter.js';
 import { loadFromEnv } from '../../core/config/index.js';
 import type { CursorConfig } from '../../core/config/types.js';
 import { ConfigError } from '../../core/errors.js';
-import type { AgentExecutionHandle, AgentExecutionRequest, AgentHealthStatus } from '../../core/types.js';
+import type {
+  AgentExecutionHandle,
+  AgentExecutionRequest,
+  AgentHealthStatus,
+} from '../../core/types.js';
 import { runCliProcess } from '../shared/CliProcessRunner.js';
 import { parseJsonLine } from '../shared/ndjsonParser.js';
 import { translateCursorEvent } from './CursorStreamParser.js';
@@ -33,11 +37,11 @@ export class CursorAgent implements AgentAdapter {
 
   healthCheck(): Promise<AgentHealthStatus> {
     return new Promise((resolve) => {
-      const handle = runCliProcess(
-        this.config.cliPath,
-        ['--version'],
-        { cwd: process.cwd(), timeoutMs: 10_000, env: this.buildEnv() },
-      );
+      const handle = runCliProcess(this.config.cliPath, ['--version'], {
+        cwd: process.cwd(),
+        timeoutMs: 10_000,
+        env: this.buildEnv(),
+      });
       handle.done.then((result) => {
         resolve(
           result.exitCode === 0
@@ -52,9 +56,16 @@ export class CursorAgent implements AgentAdapter {
     let answer = '';
     let finalResult: { success: boolean; outputText: string } | null = null;
 
+    const args = ['-p', '--output-format', 'stream-json'];
+    // Runs headless (no human to answer the CLI's own per-action confirmation
+    // prompts) — see the same note on ClaudeAgent's --dangerously-skip-permissions.
+    // Set CURSOR_FORCE=false to require the CLI's own confirmation instead.
+    if (this.config.force) args.push('--force');
+    args.push(request.prompt);
+
     const handle = runCliProcess(
       this.config.cliPath,
-      ['-p', '--force', '--output-format', 'stream-json', request.prompt],
+      args,
       {
         cwd: request.cwd,
         timeoutMs: request.timeoutMs ?? this.config.timeoutMs,

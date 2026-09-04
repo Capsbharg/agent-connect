@@ -27,7 +27,10 @@ export class InMemoryQueueProvider<T = unknown> implements QueueProvider<T> {
     return { id };
   }
 
-  process(handler: (payload: T, ctx: QueueJobContext) => Promise<void>, opts?: { concurrency?: number }): void {
+  process(
+    handler: (payload: T, ctx: QueueJobContext) => Promise<void>,
+    opts?: { concurrency?: number },
+  ): void {
     if (this.handler) {
       throw new Error('Processor already registered.');
     }

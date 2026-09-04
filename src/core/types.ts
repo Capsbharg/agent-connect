@@ -114,7 +114,8 @@ export interface ExecutionJobPayload {
  * their own alongside the built-ins registered by CommandRegistry), so
  * parsing only needs to separate "a named command" from "a free-form prompt."
  */
-export type ParsedCommand = { type: 'prompt'; text: string } | { type: 'command'; name: string; arg: string };
+export type ParsedCommand =
+  { type: 'prompt'; text: string } | { type: 'command'; name: string; arg: string };
 
 export interface CommandContext {
   identity: Identity;
@@ -123,4 +124,3 @@ export interface CommandContext {
 }
 
 export type CommandHandler = (arg: string, ctx: CommandContext) => Promise<void>;
-

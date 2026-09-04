@@ -24,7 +24,10 @@ export class ProjectSession {
   async touchActivity(identityId: string): Promise<void> {
     const existing = await this.get(identityId);
     if (!existing) return;
-    await this.storage.set<ProjectSessionState>(key(identityId), { ...existing, lastActivity: Date.now() });
+    await this.storage.set<ProjectSessionState>(key(identityId), {
+      ...existing,
+      lastActivity: Date.now(),
+    });
   }
 
   async clear(identityId: string): Promise<void> {

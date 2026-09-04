@@ -11,9 +11,11 @@ const boolString = z
 const rawEnvSchema = z.object({
   LOG_LEVEL: z.string().optional(),
   REDIS_URL: z.string().optional(),
+  REDIS_KEY_PREFIX: z.string().optional(),
   PROJECTS_CONFIG_PATH: z.string().optional(),
   DEFAULT_AGENT: z.string().optional(),
   AGENT_WORKER_CONCURRENCY: z.coerce.number().int().positive().optional(),
+  MAX_QUEUED_PER_IDENTITY: z.coerce.number().int().nonnegative().optional(),
   ADMIN_ENABLED: boolString,
   ADMIN_PORT: z.coerce.number().int().positive().optional(),
 
@@ -34,11 +36,13 @@ const rawEnvSchema = z.object({
   CLAUDE_ENABLED: boolString,
   CLAUDE_CLI_PATH: z.string().optional(),
   CLAUDE_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+  CLAUDE_SKIP_PERMISSIONS: boolString,
 
   CURSOR_ENABLED: z.string().optional(),
   CURSOR_CLI_PATH: z.string().optional(),
   CURSOR_API_KEY: z.string().optional(),
   CURSOR_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+  CURSOR_FORCE: boolString,
 
   CODEX_ENABLED: z.string().optional(),
   CODEX_CLI_PATH: z.string().optional(),
@@ -67,9 +71,11 @@ export function loadFromEnv(env: NodeJS.ProcessEnv = process.env): ResolvedConfi
   const raw = parsed.data;
 
   let slack: ResolvedConfig['slack'];
-  const slackFieldsPresent = [raw.SLACK_BOT_TOKEN, raw.SLACK_SIGNING_SECRET, raw.SLACK_APP_TOKEN].filter(
-    Boolean,
-  ).length;
+  const slackFieldsPresent = [
+    raw.SLACK_BOT_TOKEN,
+    raw.SLACK_SIGNING_SECRET,
+    raw.SLACK_APP_TOKEN,
+  ].filter(Boolean).length;
   if (slackFieldsPresent > 0) {
     const missing: string[] = [];
     if (!raw.SLACK_BOT_TOKEN) missing.push('SLACK_BOT_TOKEN');
@@ -100,6 +106,7 @@ export function loadFromEnv(env: NodeJS.ProcessEnv = process.env): ResolvedConfi
     ? {
         cliPath: raw.CLAUDE_CLI_PATH ?? 'claude',
         timeoutMs: raw.CLAUDE_TIMEOUT_MS ?? 600_000,
+        dangerouslySkipPermissions: raw.CLAUDE_SKIP_PERMISSIONS,
       }
     : undefined;
 
@@ -109,6 +116,7 @@ export function loadFromEnv(env: NodeJS.ProcessEnv = process.env): ResolvedConfi
         cliPath: raw.CURSOR_CLI_PATH ?? 'cursor-agent',
         apiKey: raw.CURSOR_API_KEY,
         timeoutMs: raw.CURSOR_TIMEOUT_MS ?? 600_000,
+        force: raw.CURSOR_FORCE,
       }
     : undefined;
 
@@ -130,9 +138,11 @@ export function loadFromEnv(env: NodeJS.ProcessEnv = process.env): ResolvedConfi
   return {
     logLevel: raw.LOG_LEVEL ?? 'info',
     redisUrl: raw.REDIS_URL,
+    redisKeyPrefix: raw.REDIS_KEY_PREFIX,
     projectsConfigPath: raw.PROJECTS_CONFIG_PATH ?? path.join(process.cwd(), 'projects.json'),
     defaultAgent,
     agentWorkerConcurrency: raw.AGENT_WORKER_CONCURRENCY ?? 4,
+    maxQueuedPerIdentity: raw.MAX_QUEUED_PER_IDENTITY ?? 20,
     admin: {
       enabled: raw.ADMIN_ENABLED,
       port: raw.ADMIN_PORT ?? 3000,

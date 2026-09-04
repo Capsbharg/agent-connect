@@ -21,7 +21,10 @@ describe('ProjectRegistry', () => {
   it('loads only entries whose path exists on disk', () => {
     const validPath = path.join(dir, 'exists');
     fs.mkdirSync(validPath);
-    fs.writeFileSync(configPath, JSON.stringify({ valid: validPath, missing: path.join(dir, 'does-not-exist') }));
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({ valid: validPath, missing: path.join(dir, 'does-not-exist') }),
+    );
 
     const registry = new ProjectRegistry(configPath, createTestLogger());
     registry.load();

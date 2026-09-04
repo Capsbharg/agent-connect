@@ -10,7 +10,11 @@ export interface CursorTranslated {
 function extractText(event: Record<string, unknown>): string {
   const candidate = event.text ?? event.delta ?? event.content ?? event.result ?? event.message;
   if (typeof candidate === 'string') return candidate;
-  if (candidate && typeof candidate === 'object' && 'text' in (candidate as Record<string, unknown>)) {
+  if (
+    candidate &&
+    typeof candidate === 'object' &&
+    'text' in (candidate as Record<string, unknown>)
+  ) {
     const inner = (candidate as Record<string, unknown>).text;
     return typeof inner === 'string' ? inner : '';
   }

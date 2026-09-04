@@ -8,7 +8,10 @@ describe('translateCodexEvent', () => {
   });
 
   it('turns an agent_message item into an answer delta', () => {
-    const result = translateCodexEvent({ type: 'item.completed', item: { type: 'agent_message', text: 'Hello' } });
+    const result = translateCodexEvent({
+      type: 'item.completed',
+      item: { type: 'agent_message', text: 'Hello' },
+    });
     expect(result.answerDelta).toBe('Hello');
   });
 
@@ -31,7 +34,9 @@ describe('translateCodexEvent', () => {
   });
 
   it('surfaces error events as a progress line', () => {
-    expect(translateCodexEvent({ type: 'error', message: 'boom' }).progressLines?.[0]).toContain('Error:');
+    expect(translateCodexEvent({ type: 'error', message: 'boom' }).progressLines?.[0]).toContain(
+      'Error:',
+    );
   });
 
   it('returns nothing for malformed input', () => {

@@ -58,6 +58,8 @@ export interface AgentConnectOptions {
   concurrency?: number;
   progressMaxLinesByPlatform?: Record<string, number>;
   security?: SecurityConfig;
+  /** Max executions (running + queued) a single identity may have outstanding at once. Defaults to 20; 0 = unlimited. */
+  maxQueuedPerIdentity?: number;
   /** Queue dashboard (Bull Board); only takes effect when `queue` is a BullMQQueueProvider. Off by default. */
   admin?: AgentConnectAdminOptions;
   /** Set internally by fromEnv() and handed to plugins via PluginContext.config. */
@@ -86,6 +88,7 @@ export class AgentConnect {
   private readonly pluginManager: PluginManager;
   private readonly adminDashboard: QueueDashboard | null;
   private readonly resolvedConfig: ResolvedConfig | undefined;
+  private readonly authorizationIsUnrestricted: boolean;
   private started = false;
 
   constructor(opts: AgentConnectOptions) {
@@ -104,11 +107,21 @@ export class AgentConnect {
     this.resolvedConfig = opts.resolvedConfig;
 
     const authentication = opts.authentication ?? new PassthroughAuthenticationProvider();
-    const authorization =
-      opts.authorization ??
-      new AllowListAuthorizationProvider(opts.security ?? { allowedUsers: [], allowedChannels: [], allowedGroups: [] });
+    const security = opts.security ?? { allowedUsers: [], allowedChannels: [], allowedGroups: [] };
+    const authorization = opts.authorization ?? new AllowListAuthorizationProvider(security);
+    // Only meaningful for the default provider — a custom AuthorizationProvider
+    // may enforce restrictions we have no way to inspect from here.
+    this.authorizationIsUnrestricted =
+      !opts.authorization &&
+      security.allowedUsers.length === 0 &&
+      security.allowedChannels.length === 0 &&
+      security.allowedGroups.length === 0;
 
-    this.agentRegistry = new AgentRegistry(opts.agents, opts.defaultAgent ?? opts.agents[0]!.name, this.storage);
+    this.agentRegistry = new AgentRegistry(
+      opts.agents,
+      opts.defaultAgent ?? opts.agents[0]!.name,
+      this.storage,
+    );
     this.projectRegistry = new ProjectRegistry(
       opts.projectsConfigPath ?? path.join(process.cwd(), 'projects.json'),
       this.logger,
@@ -126,6 +139,8 @@ export class AgentConnect {
       logger: this.logger,
     });
 
+    const maxQueuedPerIdentity = opts.maxQueuedPerIdentity ?? 20;
+
     this.router = new Router({
       messagingAdapters: this.messagingAdapters,
       authentication,
@@ -134,8 +149,10 @@ export class AgentConnect {
       projectSession,
       agentRegistry: this.agentRegistry,
       queue: this.queue,
+      activeExecutions,
       events: this.events,
       logger: this.logger,
+      maxQueuedPerIdentity: maxQueuedPerIdentity > 0 ? maxQueuedPerIdentity : undefined,
     });
 
     this.executionManager = new ExecutionManager({
@@ -153,12 +170,25 @@ export class AgentConnect {
 
     this.adminDashboard =
       opts.admin?.enabled && this.queue instanceof BullMQQueueProvider
-        ? new QueueDashboard({ queue: this.queue, port: opts.admin.port ?? 3000, logger: this.logger })
+        ? new QueueDashboard({
+            queue: this.queue,
+            port: opts.admin.port ?? 3000,
+            logger: this.logger,
+          })
         : null;
   }
 
   async start(): Promise<void> {
     if (this.started) return;
+
+    if (this.authorizationIsUnrestricted) {
+      this.logger.warn(
+        '⚠️  SECURITY: no ALLOWED_USERS/ALLOWED_CHANNELS/ALLOWED_GROUPS configured — anyone who can message this bot ' +
+          'can run arbitrary prompts against every registered project, and agents run headless (Claude with ' +
+          '--dangerously-skip-permissions, Cursor with --force) so those prompts execute without a confirmation step. ' +
+          'Set an allowlist before deploying beyond solo/local use — see the Security Notes section of the README.',
+      );
+    }
 
     if (this.storage instanceof RedisStorageProvider) {
       await this.storage.ping();
@@ -186,6 +216,29 @@ export class AgentConnect {
       platforms: this.messagingAdapters.map((adapter) => adapter.platform),
       agents: this.agentRegistry.list().map((agent) => agent.name),
     });
+
+    // Fire-and-forget: a slow/unreachable agent CLI must never delay start()
+    // resolving, but the operator should still find out about it.
+    void this.runStartupHealthChecks();
+  }
+
+  private async runStartupHealthChecks(): Promise<void> {
+    await Promise.all(
+      this.agentRegistry.list().map(async (agent) => {
+        try {
+          const status = await agent.healthCheck();
+          if (!status.healthy) {
+            this.logger.warn(`Agent "${agent.name}" failed its startup health check`, {
+              message: status.message,
+            });
+          }
+        } catch (error) {
+          this.logger.warn(`Agent "${agent.name}" health check threw`, {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }),
+    );
   }
 
   async stop(): Promise<void> {
@@ -242,8 +295,13 @@ export class AgentConnect {
     let storage: StorageProvider;
     let queue: QueueProvider<ExecutionJobPayload>;
     if (config.redisUrl) {
-      storage = new RedisStorageProvider(config.redisUrl, logger);
-      queue = new BullMQQueueProvider<ExecutionJobPayload>('agent-connect-executions', config.redisUrl, logger);
+      storage = new RedisStorageProvider(config.redisUrl, logger, config.redisKeyPrefix);
+      queue = new BullMQQueueProvider<ExecutionJobPayload>(
+        'agent-connect-executions',
+        config.redisUrl,
+        logger,
+        config.redisKeyPrefix,
+      );
     } else {
       logger.warn(
         'REDIS_URL not set — using in-memory storage/queue. Single-process only; fine for local dev, not for production.',
@@ -262,6 +320,7 @@ export class AgentConnect {
       projectsConfigPath: config.projectsConfigPath,
       defaultAgent: config.defaultAgent,
       concurrency: config.agentWorkerConcurrency,
+      maxQueuedPerIdentity: config.maxQueuedPerIdentity,
       progressMaxLinesByPlatform,
       admin: { enabled: config.admin.enabled, port: config.admin.port },
       resolvedConfig: config,

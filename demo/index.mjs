@@ -9,11 +9,16 @@ const consoleAdapter = new ConsoleAdapter();
 const app = new AgentConnect({
   messaging: [consoleAdapter],
   agents: [new EchoAgent()],
-  projectsConfigPath: new URL('./projects.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'),
+  projectsConfigPath: new URL('./projects.json', import.meta.url).pathname.replace(
+    /^\/([A-Za-z]:)/,
+    '$1',
+  ),
 });
 
 await app.start();
-console.log('=== AgentConnect demo started (console adapter, in-memory queue/storage, echo agent) ===');
+console.log(
+  '=== AgentConnect demo started (console adapter, in-memory queue/storage, echo agent) ===',
+);
 
 await consoleAdapter.simulateMessage('help');
 await consoleAdapter.simulateMessage('projects');

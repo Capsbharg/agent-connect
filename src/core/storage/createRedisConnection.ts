@@ -6,10 +6,11 @@ import type { Logger } from '../logger/Logger.js';
  * across blocking and non-blocking commands can deadlock), so this is a
  * factory, not a singleton. RedisStorageProvider gets its own connection too.
  */
-export function createRedisConnection(redisUrl: string, logger: Logger): Redis {
+export function createRedisConnection(redisUrl: string, logger: Logger, keyPrefix?: string): Redis {
   const connection = new Redis(redisUrl, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
+    ...(keyPrefix ? { keyPrefix } : {}),
   });
 
   connection.on('error', (error) => {

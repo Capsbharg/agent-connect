@@ -11,7 +11,10 @@ export interface CommandNameInfo {
  * second rule is what keeps "help me implement X" from being swallowed by
  * the `help` command instead of reaching the agent as a prompt.
  */
-export function parseCommand(text: string, knownCommands: ReadonlyMap<string, CommandNameInfo>): ParsedCommand {
+export function parseCommand(
+  text: string,
+  knownCommands: ReadonlyMap<string, CommandNameInfo>,
+): ParsedCommand {
   const trimmed = (text ?? '').trim();
   const [firstWord, ...rest] = trimmed.split(/\s+/);
   const keyword = (firstWord ?? '').toLowerCase();

@@ -8,9 +8,15 @@ function identity(id: string, platformUserId = id): Identity {
 
 describe('AllowListAuthorizationProvider', () => {
   it('allows everything when all lists are empty', async () => {
-    const provider = new AllowListAuthorizationProvider({ allowedUsers: [], allowedChannels: [], allowedGroups: [] });
+    const provider = new AllowListAuthorizationProvider({
+      allowedUsers: [],
+      allowedChannels: [],
+      allowedGroups: [],
+    });
     await expect(provider.isAllowed(identity('u1'), { isDirect: true })).resolves.toBe(true);
-    await expect(provider.isAllowed(identity('u1'), { isDirect: false, channelId: 'c1' })).resolves.toBe(true);
+    await expect(
+      provider.isAllowed(identity('u1'), { isDirect: false, channelId: 'c1' }),
+    ).resolves.toBe(true);
   });
 
   it('enforces allowedUsers by identity id or bare platform user id', async () => {
@@ -19,8 +25,12 @@ describe('AllowListAuthorizationProvider', () => {
       allowedChannels: [],
       allowedGroups: [],
     });
-    await expect(provider.isAllowed(identity('test:u1', 'u1'), { isDirect: true })).resolves.toBe(true);
-    await expect(provider.isAllowed(identity('test:u2', 'u2'), { isDirect: true })).resolves.toBe(false);
+    await expect(provider.isAllowed(identity('test:u1', 'u1'), { isDirect: true })).resolves.toBe(
+      true,
+    );
+    await expect(provider.isAllowed(identity('test:u2', 'u2'), { isDirect: true })).resolves.toBe(
+      false,
+    );
   });
 
   it('enforces allowedChannels only for non-direct, non-group messages', async () => {
@@ -29,9 +39,15 @@ describe('AllowListAuthorizationProvider', () => {
       allowedChannels: ['c1'],
       allowedGroups: [],
     });
-    await expect(provider.isAllowed(identity('u1'), { isDirect: false, channelId: 'c1' })).resolves.toBe(true);
-    await expect(provider.isAllowed(identity('u1'), { isDirect: false, channelId: 'c2' })).resolves.toBe(false);
-    await expect(provider.isAllowed(identity('u1'), { isDirect: true, channelId: 'c2' })).resolves.toBe(true);
+    await expect(
+      provider.isAllowed(identity('u1'), { isDirect: false, channelId: 'c1' }),
+    ).resolves.toBe(true);
+    await expect(
+      provider.isAllowed(identity('u1'), { isDirect: false, channelId: 'c2' }),
+    ).resolves.toBe(false);
+    await expect(
+      provider.isAllowed(identity('u1'), { isDirect: true, channelId: 'c2' }),
+    ).resolves.toBe(true);
   });
 
   it('enforces allowedGroups independently of allowedChannels', async () => {

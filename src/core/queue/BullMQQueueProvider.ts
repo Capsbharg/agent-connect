@@ -20,13 +20,23 @@ export class BullMQQueueProvider<T = unknown> implements QueueProvider<T> {
   private worker: Worker<T> | null = null;
   private workerConnection: Redis | null = null;
 
+  /**
+   * `keyPrefix` namespaces every key this queue owns, using BullMQ's own
+   * `prefix` option (not ioredis' `keyPrefix`, which conflicts with how
+   * BullMQ addresses its own keys internally) — set it when a Redis instance
+   * is shared with other apps to avoid collisions.
+   */
   constructor(
     private readonly queueName: string,
     private readonly redisUrl: string,
     private readonly logger: Logger,
+    private readonly keyPrefix?: string,
   ) {
     this.queueConnection = createRedisConnection(redisUrl, logger);
-    this.queue = new Queue<T>(queueName, { connection: this.queueConnection });
+    this.queue = new Queue<T>(queueName, {
+      connection: this.queueConnection,
+      prefix: this.keyPrefix,
+    });
   }
 
   async enqueue(payload: T, opts?: { priority?: number }): Promise<{ id: string }> {
@@ -42,15 +52,23 @@ export class BullMQQueueProvider<T = unknown> implements QueueProvider<T> {
     return { id: job.id ?? '' };
   }
 
-  process(handler: (payload: T, ctx: QueueJobContext) => Promise<void>, opts?: { concurrency?: number }): void {
+  process(
+    handler: (payload: T, ctx: QueueJobContext) => Promise<void>,
+    opts?: { concurrency?: number },
+  ): void {
     if (this.worker) {
       throw new Error(`Queue "${this.queueName}" already has a processor registered.`);
     }
     this.workerConnection = createRedisConnection(this.redisUrl, this.logger);
-    this.worker = new Worker<T>(this.queueName, (job) => handler(job.data, { jobId: job.id ?? '' }), {
-      connection: this.workerConnection,
-      concurrency: opts?.concurrency ?? 4,
-    });
+    this.worker = new Worker<T>(
+      this.queueName,
+      (job) => handler(job.data, { jobId: job.id ?? '' }),
+      {
+        connection: this.workerConnection,
+        concurrency: opts?.concurrency ?? 4,
+        prefix: this.keyPrefix,
+      },
+    );
 
     this.worker.on('failed', (job, error) => {
       this.logger.error(`Job ${job?.id} failed`, { error: error.message });

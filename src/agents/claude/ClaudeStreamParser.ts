@@ -27,7 +27,8 @@ const TOOL_VERBS: Record<string, (input: Record<string, unknown>) => string> = {
   Bash: (input) => `Running \`${truncate(input.command, 80)}\`...`,
   Grep: (input) => `Searching for "${input.pattern}"...`,
   Glob: (input) => `Finding files matching ${input.pattern}...`,
-  Task: (input) => `Delegating to subagent: ${input.description ?? input.subagent_type ?? 'task'}...`,
+  Task: (input) =>
+    `Delegating to subagent: ${input.description ?? input.subagent_type ?? 'task'}...`,
   WebFetch: (input) => `Fetching ${input.url}...`,
   WebSearch: (input) => `Searching the web for "${input.query}"...`,
   TodoWrite: () => 'Updating task list...',
@@ -65,7 +66,9 @@ export function translateClaudeEvent(json: unknown): ClaudeTranslated {
       for (const blockRaw of content) {
         const block = blockRaw as Record<string, unknown>;
         if (block.type === 'tool_use') {
-          progressLines.push(toolNameToVerb(String(block.name), block.input as Record<string, unknown>));
+          progressLines.push(
+            toolNameToVerb(String(block.name), block.input as Record<string, unknown>),
+          );
         } else if (block.type === 'text' && typeof block.text === 'string') {
           answerDelta += block.text;
         }

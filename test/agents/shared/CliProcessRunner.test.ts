@@ -30,36 +30,28 @@ describe('runCliProcess', () => {
     expect(result.exitCode).toBe(3);
   });
 
-  it(
-    'cancel() kills the process and marks the result as cancelled',
-    async () => {
-      const handle = runCliProcess(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], {
-        cwd: process.cwd(),
-        timeoutMs: 60_000,
-      });
+  it('cancel() kills the process and marks the result as cancelled', async () => {
+    const handle = runCliProcess(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], {
+      cwd: process.cwd(),
+      timeoutMs: 60_000,
+    });
 
-      handle.cancel();
-      const result = await handle.done;
+    handle.cancel();
+    const result = await handle.done;
 
-      expect(result.cancelled).toBe(true);
-      expect(result.success).toBe(false);
-    },
-    10_000,
-  );
+    expect(result.cancelled).toBe(true);
+    expect(result.success).toBe(false);
+  }, 10_000);
 
-  it(
-    'times out a long-running process',
-    async () => {
-      const handle = runCliProcess(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], {
-        cwd: process.cwd(),
-        timeoutMs: 200,
-      });
+  it('times out a long-running process', async () => {
+    const handle = runCliProcess(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], {
+      cwd: process.cwd(),
+      timeoutMs: 200,
+    });
 
-      const result = await handle.done;
+    const result = await handle.done;
 
-      expect(result.timedOut).toBe(true);
-      expect(result.success).toBe(false);
-    },
-    10_000,
-  );
+    expect(result.timedOut).toBe(true);
+    expect(result.success).toBe(false);
+  }, 10_000);
 });

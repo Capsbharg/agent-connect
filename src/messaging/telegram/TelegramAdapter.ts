@@ -1,11 +1,19 @@
 import { Bot, type Context } from 'grammy';
-import type { MessagingAdapter, MessagingAdapterCapabilities } from '../../interfaces/MessagingAdapter.js';
+import type {
+  MessagingAdapter,
+  MessagingAdapterCapabilities,
+} from '../../interfaces/MessagingAdapter.js';
 import { loadFromEnv } from '../../core/config/index.js';
 import type { TelegramConfig } from '../../core/config/types.js';
 import { ConfigError } from '../../core/errors.js';
 import { createLogger } from '../../core/logger/createLogger.js';
 import type { Logger } from '../../core/logger/Logger.js';
-import type { InboundAttachment, InboundMessage, ReplyContext, StreamingResponder } from '../../core/types.js';
+import type {
+  InboundAttachment,
+  InboundMessage,
+  ReplyContext,
+  StreamingResponder,
+} from '../../core/types.js';
 import { TelegramMessageStream } from './TelegramMessageStream.js';
 
 /**
@@ -14,7 +22,7 @@ import { TelegramMessageStream } from './TelegramMessageStream.js';
  * "help" and flow through the same CommandParser as Slack's plain-word
  * commands.
  */
-function normalizeText(rawText: string, botUsername: string | undefined): string {
+export function normalizeText(rawText: string, botUsername: string | undefined): string {
   let text = rawText.trim();
   if (text.startsWith('/')) {
     text = text.slice(1);
@@ -51,7 +59,9 @@ export class TelegramAdapter implements MessagingAdapter {
   constructor(opts: TelegramAdapterOptions = {}) {
     const config = opts.config ?? loadFromEnv().telegram;
     if (!config) {
-      throw new ConfigError('TelegramAdapter: no config provided and TELEGRAM_BOT_TOKEN is not set.');
+      throw new ConfigError(
+        'TelegramAdapter: no config provided and TELEGRAM_BOT_TOKEN is not set.',
+      );
     }
     this.config = config;
     this.logger = opts.logger ?? createLogger();
@@ -133,7 +143,9 @@ export class TelegramAdapter implements MessagingAdapter {
     };
   }
 
-  private async extractAttachments(msg: NonNullable<Context['message']>): Promise<InboundAttachment[]> {
+  private async extractAttachments(
+    msg: NonNullable<Context['message']>,
+  ): Promise<InboundAttachment[]> {
     const fileRef = msg.document ?? (Array.isArray(msg.photo) ? msg.photo.at(-1) : undefined);
     if (!fileRef) return [];
 

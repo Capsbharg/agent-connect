@@ -7,8 +7,9 @@ import { createRedisConnection } from './createRedisConnection.js';
 export class RedisStorageProvider implements StorageProvider {
   private readonly redis: Redis;
 
-  constructor(redisUrl: string, logger: Logger) {
-    this.redis = createRedisConnection(redisUrl, logger);
+  /** `keyPrefix` namespaces every key this provider touches — set it when a Redis instance is shared with other apps to avoid collisions. */
+  constructor(redisUrl: string, logger: Logger, keyPrefix?: string) {
+    this.redis = createRedisConnection(redisUrl, logger, keyPrefix);
   }
 
   async get<T = unknown>(key: string): Promise<T | null> {

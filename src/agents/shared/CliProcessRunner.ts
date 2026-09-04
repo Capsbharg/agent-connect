@@ -122,7 +122,8 @@ export function runCliProcess(
       durationMs: Date.now() - startedAt,
       cancelled,
       timedOut,
-      errorMessage: !cancelled && !timedOut && exitCode !== 0 ? truncate(stderrOutput, 500) : undefined,
+      errorMessage:
+        !cancelled && !timedOut && exitCode !== 0 ? truncate(stderrOutput, 500) : undefined,
     });
   });
 

@@ -16,7 +16,12 @@ interface CommandDefinition {
 export class CommandRegistry {
   private readonly commands = new Map<string, CommandDefinition>();
 
-  register(name: string, description: string, handler: CommandHandler, opts?: { takesArg?: boolean }): void {
+  register(
+    name: string,
+    description: string,
+    handler: CommandHandler,
+    opts?: { takesArg?: boolean },
+  ): void {
     this.commands.set(name.toLowerCase(), {
       description,
       handler,
@@ -33,7 +38,10 @@ export class CommandRegistry {
   }
 
   describeAll(): Array<{ name: string; description: string }> {
-    return [...this.commands.entries()].map(([name, def]) => ({ name, description: def.description }));
+    return [...this.commands.entries()].map(([name, def]) => ({
+      name,
+      description: def.description,
+    }));
   }
 
   async execute(name: string, arg: string, ctx: CommandContext): Promise<boolean> {

@@ -23,7 +23,11 @@ describe('parseCommand', () => {
   });
 
   it('captures the remainder as an argument for a command that takes one', () => {
-    expect(parseCommand('use backend-api', KNOWN)).toEqual({ type: 'command', name: 'use', arg: 'backend-api' });
+    expect(parseCommand('use backend-api', KNOWN)).toEqual({
+      type: 'command',
+      name: 'use',
+      arg: 'backend-api',
+    });
   });
 
   it('treats unknown keywords as a prompt', () => {

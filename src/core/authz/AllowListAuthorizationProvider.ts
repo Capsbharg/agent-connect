@@ -1,4 +1,7 @@
-import type { AuthorizationContext, AuthorizationProvider } from '../../interfaces/AuthorizationProvider.js';
+import type {
+  AuthorizationContext,
+  AuthorizationProvider,
+} from '../../interfaces/AuthorizationProvider.js';
 import type { SecurityConfig } from '../config/types.js';
 import type { Identity } from '../types.js';
 

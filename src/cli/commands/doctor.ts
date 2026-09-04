@@ -1,6 +1,9 @@
-import IORedis from 'ioredis';
+import { Redis as IORedis } from 'ioredis';
 import { WebClient } from '@slack/web-api';
-import { runCliProcess } from '../../agents/shared/CliProcessRunner.js';
+import { ClaudeAgent } from '../../agents/claude/ClaudeAgent.js';
+import { CursorAgent } from '../../agents/cursor/CursorAgent.js';
+import { CodexAgent } from '../../agents/codex/CodexAgent.js';
+import type { AgentAdapter } from '../../interfaces/AgentAdapter.js';
 
 interface CheckResult {
   label: string;
@@ -8,17 +11,12 @@ interface CheckResult {
   detail?: string;
 }
 
-function checkCli(label: string, cliPath: string): Promise<CheckResult> {
-  return new Promise((resolve) => {
-    const handle = runCliProcess(cliPath, ['--version'], { cwd: process.cwd(), timeoutMs: 10_000 });
-    handle.done.then((result) => {
-      resolve(
-        result.exitCode === 0
-          ? { label, ok: true }
-          : { label, ok: false, detail: result.errorMessage ?? `"${cliPath}" not found on PATH` },
-      );
-    });
-  });
+/** Reuses each agent's own healthCheck() rather than re-implementing a CLI probe here, so `doctor` and a running app agree on what "healthy" means. */
+async function checkAgent(label: string, agent: AgentAdapter): Promise<CheckResult> {
+  const status = await agent.healthCheck();
+  return status.healthy
+    ? { label, ok: true }
+    : { label, ok: false, detail: status.message ?? 'not found on PATH' };
 }
 
 async function checkRedis(url: string): Promise<CheckResult> {
@@ -33,7 +31,11 @@ async function checkRedis(url: string): Promise<CheckResult> {
     await client.ping();
     return { label: `Redis (${url})`, ok: true };
   } catch (error) {
-    return { label: `Redis (${url})`, ok: false, detail: error instanceof Error ? error.message : String(error) };
+    return {
+      label: `Redis (${url})`,
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error),
+    };
   } finally {
     client.disconnect();
   }
@@ -43,21 +45,37 @@ async function checkSlack(botToken: string): Promise<CheckResult> {
   try {
     const client = new WebClient(botToken);
     const result = await client.auth.test();
-    return { label: 'Slack token', ok: true, detail: `authenticated as ${result.user} in ${result.team}` };
+    return {
+      label: 'Slack token',
+      ok: true,
+      detail: `authenticated as ${result.user} in ${result.team}`,
+    };
   } catch (error) {
-    return { label: 'Slack token', ok: false, detail: error instanceof Error ? error.message : String(error) };
+    return {
+      label: 'Slack token',
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
 async function checkTelegram(botToken: string): Promise<CheckResult> {
   try {
     const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
-    const body = (await response.json()) as { ok: boolean; result?: { username?: string }; description?: string };
+    const body = (await response.json()) as {
+      ok: boolean;
+      result?: { username?: string };
+      description?: string;
+    };
     return body.ok
       ? { label: 'Telegram token', ok: true, detail: `authenticated as @${body.result?.username}` }
       : { label: 'Telegram token', ok: false, detail: body.description };
   } catch (error) {
-    return { label: 'Telegram token', ok: false, detail: error instanceof Error ? error.message : String(error) };
+    return {
+      label: 'Telegram token',
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -69,14 +87,44 @@ export async function runDoctor(): Promise<void> {
   if (process.env.TELEGRAM_BOT_TOKEN) checks.push(checkTelegram(process.env.TELEGRAM_BOT_TOKEN));
   if (process.env.REDIS_URL) checks.push(checkRedis(process.env.REDIS_URL));
 
+  // Built directly from process.env (not loadFromEnv()) so an unrelated
+  // misconfiguration — e.g. Slack partially set up — can never prevent
+  // `doctor` from reporting on the agents that ARE configured correctly.
   if (process.env.CLAUDE_ENABLED !== 'false') {
-    checks.push(checkCli('Claude Code CLI', process.env.CLAUDE_CLI_PATH || 'claude'));
+    checks.push(
+      checkAgent(
+        'Claude Code CLI',
+        new ClaudeAgent({
+          cliPath: process.env.CLAUDE_CLI_PATH || 'claude',
+          timeoutMs: Number(process.env.CLAUDE_TIMEOUT_MS) || 600_000,
+          dangerouslySkipPermissions: true,
+        }),
+      ),
+    );
   }
   if (process.env.CURSOR_ENABLED === 'true') {
-    checks.push(checkCli('Cursor CLI', process.env.CURSOR_CLI_PATH || 'cursor-agent'));
+    checks.push(
+      checkAgent(
+        'Cursor CLI',
+        new CursorAgent({
+          cliPath: process.env.CURSOR_CLI_PATH || 'cursor-agent',
+          apiKey: process.env.CURSOR_API_KEY,
+          timeoutMs: Number(process.env.CURSOR_TIMEOUT_MS) || 600_000,
+          force: true,
+        }),
+      ),
+    );
   }
   if (process.env.CODEX_ENABLED === 'true') {
-    checks.push(checkCli('Codex CLI', process.env.CODEX_CLI_PATH || 'codex'));
+    checks.push(
+      checkAgent(
+        'Codex CLI',
+        new CodexAgent({
+          cliPath: process.env.CODEX_CLI_PATH || 'codex',
+          timeoutMs: Number(process.env.CODEX_TIMEOUT_MS) || 600_000,
+        }),
+      ),
+    );
   }
 
   console.log('\nagent-connect doctor\n');

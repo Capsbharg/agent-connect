@@ -32,7 +32,9 @@ export class ProjectRegistry {
     try {
       parsed = JSON.parse(raw);
     } catch (error) {
-      this.logger.error(`Failed to parse project registry at ${this.configPath}: ${(error as Error).message}`);
+      this.logger.error(
+        `Failed to parse project registry at ${this.configPath}: ${(error as Error).message}`,
+      );
       this.registry = {};
       return;
     }
@@ -40,7 +42,9 @@ export class ProjectRegistry {
     const validated: Record<string, string> = {};
     for (const [name, projectPath] of Object.entries(parsed as Record<string, unknown>)) {
       if (typeof projectPath !== 'string' || !fs.existsSync(projectPath)) {
-        this.logger.warn(`Project registry entry "${name}" points to a path that does not exist: ${String(projectPath)}`);
+        this.logger.warn(
+          `Project registry entry "${name}" points to a path that does not exist: ${String(projectPath)}`,
+        );
         continue;
       }
       validated[name] = projectPath;
@@ -49,7 +53,9 @@ export class ProjectRegistry {
   }
 
   getPath(name: string): string | undefined {
-    return Object.prototype.hasOwnProperty.call(this.registry, name) ? this.registry[name] : undefined;
+    return Object.prototype.hasOwnProperty.call(this.registry, name)
+      ? this.registry[name]
+      : undefined;
   }
 
   isValid(name: string): boolean {

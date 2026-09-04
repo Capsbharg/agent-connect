@@ -9,8 +9,12 @@ describe('translateCursorEvent', () => {
   });
 
   it('extracts an answer delta from a text-bearing event', () => {
-    expect(translateCursorEvent({ type: 'assistant', text: 'Hi there' })).toEqual({ answerDelta: 'Hi there' });
-    expect(translateCursorEvent({ type: 'delta', delta: 'more text' })).toEqual({ answerDelta: 'more text' });
+    expect(translateCursorEvent({ type: 'assistant', text: 'Hi there' })).toEqual({
+      answerDelta: 'Hi there',
+    });
+    expect(translateCursorEvent({ type: 'delta', delta: 'more text' })).toEqual({
+      answerDelta: 'more text',
+    });
   });
 
   it('produces a final result on a terminal event', () => {
@@ -23,7 +27,9 @@ describe('translateCursorEvent', () => {
   });
 
   it('surfaces error events as a progress line', () => {
-    expect(translateCursorEvent({ type: 'error', message: 'boom' }).progressLines?.[0]).toContain('Error:');
+    expect(translateCursorEvent({ type: 'error', message: 'boom' }).progressLines?.[0]).toContain(
+      'Error:',
+    );
   });
 
   it('returns nothing for unrecognized event types', () => {

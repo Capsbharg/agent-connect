@@ -6,7 +6,7 @@ A plugin registers itself against the running app — new commands, event listen
 
 ```ts
 interface PluginContext {
-  events: EventPublisher;   // on(event, listener) / emit(event, payload)
+  events: EventPublisher; // on(event, listener) / emit(event, payload)
   commands: CommandRegistry; // register(name, description, handler, { takesArg? })
   logger: Logger;
   config?: Readonly<ResolvedConfig>; // only set when the app was built via AgentConnect.fromEnv()
@@ -34,14 +34,14 @@ const app = new AgentConnect({
 
 ## Events
 
-| Event | Fires | Payload |
-|---|---|---|
-| `beforeMessage` | Every inbound message, before auth | `{ message }` |
-| `afterMessage` | After a message finished routing (command handled, prompt enqueued, or dropped) | `{ message, identity }` |
-| `beforeExecution` | Right before an agent starts running a prompt | `{ payload, identity }` |
-| `afterExecution` | Right after an agent finishes | `{ payload, identity, result }` |
-| `beforeReply` | Right before the final answer is sent back | `{ payload, content }` |
-| `afterReply` | Right after it's sent | `{ payload, content }` |
+| Event             | Fires                                                                           | Payload                         |
+| ----------------- | ------------------------------------------------------------------------------- | ------------------------------- |
+| `beforeMessage`   | Every inbound message, before auth                                              | `{ message }`                   |
+| `afterMessage`    | After a message finished routing (command handled, prompt enqueued, or dropped) | `{ message, identity }`         |
+| `beforeExecution` | Right before an agent starts running a prompt                                   | `{ payload, identity }`         |
+| `afterExecution`  | Right after an agent finishes                                                   | `{ payload, identity, result }` |
+| `beforeReply`     | Right before the final answer is sent back                                      | `{ payload, content }`          |
+| `afterReply`      | Right after it's sent                                                           | `{ payload, content }`          |
 
 `events.on(name, listener)` returns an unsubscribe function. A throwing listener is logged and does not stop other listeners from running.
 

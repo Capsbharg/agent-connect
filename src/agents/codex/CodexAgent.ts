@@ -2,7 +2,11 @@ import type { AgentAdapter } from '../../interfaces/AgentAdapter.js';
 import { loadFromEnv } from '../../core/config/index.js';
 import type { CodexConfig } from '../../core/config/types.js';
 import { ConfigError } from '../../core/errors.js';
-import type { AgentExecutionHandle, AgentExecutionRequest, AgentHealthStatus } from '../../core/types.js';
+import type {
+  AgentExecutionHandle,
+  AgentExecutionRequest,
+  AgentHealthStatus,
+} from '../../core/types.js';
 import { runCliProcess } from '../shared/CliProcessRunner.js';
 import { parseJsonLine } from '../shared/ndjsonParser.js';
 import { translateCodexEvent } from './CodexStreamParser.js';
@@ -22,7 +26,10 @@ export class CodexAgent implements AgentAdapter {
 
   healthCheck(): Promise<AgentHealthStatus> {
     return new Promise((resolve) => {
-      const handle = runCliProcess(this.config.cliPath, ['--version'], { cwd: process.cwd(), timeoutMs: 10_000 });
+      const handle = runCliProcess(this.config.cliPath, ['--version'], {
+        cwd: process.cwd(),
+        timeoutMs: 10_000,
+      });
       handle.done.then((result) => {
         resolve(
           result.exitCode === 0

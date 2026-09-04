@@ -50,7 +50,9 @@ new SlackAdapter({
 });
 ```
 
-`AgentConnectOptions` also accepts `storage`, `queue`, `authentication`, `authorization`, `events`, `logger`, `plugins`, `projectsConfigPath`, `defaultAgent`, `concurrency`, `progressMaxLinesByPlatform`, `security`, and `admin` — every one of them defaults sensibly (see `core/AgentConnect.ts`) so you only override what you actually need to change. This is the seam for swapping in your own `QueueProvider`, a custom `AuthorizationProvider` (RBAC, OPA, ...), etc.
+`AgentConnectOptions` also accepts `storage`, `queue`, `authentication`, `authorization`, `events`, `logger`, `plugins`, `projectsConfigPath`, `defaultAgent`, `concurrency`, `progressMaxLinesByPlatform`, `security`, `maxQueuedPerIdentity` (default `20`; `0` = unlimited), and `admin` — every one of them defaults sensibly (see `core/AgentConnect.ts`) so you only override what you actually need to change. This is the seam for swapping in your own `QueueProvider`, a custom `AuthorizationProvider` (RBAC, OPA, ...), etc.
+
+Passing `authorization` yourself takes over the empty-allowlist startup warning too — `AgentConnect.start()` only checks whether the default `AllowListAuthorizationProvider` would allow everyone; a custom provider's restrictions aren't inspectable from outside it.
 
 ## Projects
 
@@ -67,17 +69,18 @@ A user runs `use <project>` to select one; the name is matched **exactly** again
 
 ## Commands
 
-| Command | Description |
-|---|---|
-| `help` | List available commands |
-| `projects` | List registered projects |
-| `current` | Show your active project |
-| `use <project>` | Switch your active project |
-| `agents` | List registered agents |
-| `agent [name]` | Show or switch which agent handles your prompts |
-| `status` | Show your running/queued executions |
-| `cancel` | Stop your running execution and clear your queued ones |
-| `clear` | Clear your active project selection |
+| Command         | Description                                                              |
+| --------------- | ------------------------------------------------------------------------ |
+| `help`          | List available commands                                                  |
+| `projects`      | List registered projects                                                 |
+| `current`       | Show your active project                                                 |
+| `use <project>` | Switch your active project                                               |
+| `agents`        | List registered agents                                                   |
+| `agent [name]`  | Show or switch which agent handles your prompts                          |
+| `status`        | Show your running/queued executions, with their ids                      |
+| `cancel [id]`   | Stop/clear everything, or cancel just one execution by id (see `status`) |
+| `health`        | Check every registered agent's CLI/availability                          |
+| `clear`         | Clear your active project selection                                      |
 
 Anything else is sent to your active agent as a prompt (requires an active project). Plugins can register additional commands through `PluginContext.commands` — see the [Plugin Guide](./plugin-guide.md).
 

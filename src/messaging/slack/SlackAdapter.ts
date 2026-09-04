@@ -1,5 +1,8 @@
 import type { App } from '@slack/bolt';
-import type { MessagingAdapter, MessagingAdapterCapabilities } from '../../interfaces/MessagingAdapter.js';
+import type {
+  MessagingAdapter,
+  MessagingAdapterCapabilities,
+} from '../../interfaces/MessagingAdapter.js';
 import { loadFromEnv } from '../../core/config/index.js';
 import type { SlackConfig } from '../../core/config/types.js';
 import { ConfigError } from '../../core/errors.js';
@@ -9,7 +12,8 @@ import type { InboundMessage, ReplyContext, StreamingResponder } from '../../cor
 import { createSlackApp } from './SlackApp.js';
 import { SlackThreadStream } from './SlackThreadStream.js';
 
-function stripMentionTags(text: string): string {
+/** Exported for unit testing — Slack's mention syntax is `<@U123>` / `<@U123|display>`. */
+export function stripMentionTags(text: string): string {
   return text.replace(/<@[^>]+>/g, '').trim();
 }
 

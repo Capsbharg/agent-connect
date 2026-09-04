@@ -1,4 +1,8 @@
-import type { AgentExecutionHandle, AgentExecutionRequest, AgentHealthStatus } from '../core/types.js';
+import type {
+  AgentExecutionHandle,
+  AgentExecutionRequest,
+  AgentHealthStatus,
+} from '../core/types.js';
 
 /**
  * The contract every AI coding agent (Claude Code, Cursor, Codex, and future

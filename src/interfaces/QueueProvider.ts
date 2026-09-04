@@ -16,7 +16,10 @@ export interface QueueProvider<T = unknown> {
   enqueue(payload: T, opts?: { priority?: number }): Promise<{ id: string }>;
 
   /** Registers the (single) processor for this queue. Call once. */
-  process(handler: (payload: T, ctx: QueueJobContext) => Promise<void>, opts?: { concurrency?: number }): void;
+  process(
+    handler: (payload: T, ctx: QueueJobContext) => Promise<void>,
+    opts?: { concurrency?: number },
+  ): void;
 
   /** Best-effort cancellation of a pending (not yet started) job. */
   cancel(jobId: string): Promise<void>;
