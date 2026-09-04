@@ -10,6 +10,7 @@ Mention a bot on Slack or Telegram, pick a project, hand it a task — and watch
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Queue: BullMQ](https://img.shields.io/badge/queue-BullMQ-DC382D?logo=redis&logoColor=white)](https://bullmq.io/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/capsbharg)
 
 ```mermaid
 flowchart LR
@@ -44,6 +45,7 @@ Every messaging platform looks the same to the core. Every AI agent looks the sa
 - [🔒 Security Notes](#security-notes)
 - [📝 License](#license)
 - [🤝 Contributing](#contributing)
+- [☕ Support](#support)
 
 ---
 
@@ -464,3 +466,17 @@ Clean Architecture, SOLID, dependency injection, adapter pattern — every messa
 ## 🤝 Contributing
 
 Issues and PRs welcome! Adding a new messaging platform or AI agent should only ever require implementing `MessagingAdapter` or `AgentAdapter` (see `src/interfaces/`) — if a contribution needs to touch `core/router`, `core/execution`, or `core/commands` to add a platform/agent, something's off with the abstraction. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow (setup, tests, lint, PR checklist) and [SECURITY.md](SECURITY.md) to report a vulnerability privately.
+
+---
+
+<a id="support"></a>
+
+## ☕ Support
+
+Agent Connect is built by Capsbharg, a small, early-stage startup — no big-company backing, no war chest, just a small team building tools we genuinely wanted to exist and betting that other people want them too.
+
+If it's saved you an hour of wiring, made your team's workflow a little more magical, or you just want to see it keep growing — more platforms, more agents, more polish — [buying us a coffee](https://buymeacoffee.com/capsbharg) genuinely helps. It's not a paywall and it never will be; everything here stays free and open. But every coffee is a real vote that this is worth keeping alive, and for a young startup, that support is what buys the runway to keep building instead of quietly shelving it.
+
+<a href="https://buymeacoffee.com/capsbharg"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=capsbharg&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy Me A Coffee" /></a>
+
+Thank you for using Agent Connect — truly. 🙏
