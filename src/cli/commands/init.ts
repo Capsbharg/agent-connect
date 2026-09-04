@@ -87,6 +87,10 @@ function renderEnv(opts: RenderEnvOptions): string {
     'CODEX_CLI_PATH=codex',
     'CODEX_TIMEOUT_MS=600000',
     '',
+    `GEMINI_ENABLED=${opts.agents.includes('gemini')}`,
+    'GEMINI_CLI_PATH=gemini',
+    'GEMINI_TIMEOUT_MS=600000',
+    '',
   );
 
   return lines.join('\n');
@@ -129,6 +133,7 @@ export async function runInit(): Promise<void> {
       { value: 'claude', label: 'Claude Code', hint: 'recommended' },
       { value: 'cursor', label: 'Cursor CLI' },
       { value: 'codex', label: 'OpenAI Codex CLI' },
+      { value: 'gemini', label: 'Gemini CLI' },
     ],
     initialValues: ['claude'],
     required: true,

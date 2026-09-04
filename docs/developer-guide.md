@@ -14,7 +14,7 @@ await app.start();
 Reads `.env` (see `.env.example` at the repo root, or generate one with `npx @capsbharg/agent-connect init`) and auto-configures:
 
 - **Messaging**: `SlackAdapter` if `SLACK_BOT_TOKEN`+`SLACK_SIGNING_SECRET`+`SLACK_APP_TOKEN` are set; `TelegramAdapter` if `TELEGRAM_BOT_TOKEN` is set. At least one is required.
-- **Agents**: `ClaudeAgent` (on by default), `CursorAgent`/`CodexAgent` if `CURSOR_ENABLED=true`/`CODEX_ENABLED=true`. At least one is required.
+- **Agents**: `ClaudeAgent` (on by default), `CursorAgent`/`CodexAgent`/`GeminiAgent` if `CURSOR_ENABLED=true`/`CODEX_ENABLED=true`/`GEMINI_ENABLED=true`. At least one is required.
 - **Storage/queue**: `RedisStorageProvider` + `BullMQQueueProvider` if `REDIS_URL` is set; otherwise `InMemoryStorageProvider` + `InMemoryQueueProvider` (single-process, dev only — a warning is logged).
 - **Security**: `AllowListAuthorizationProvider` from `ALLOWED_USERS`/`ALLOWED_CHANNELS`/`ALLOWED_GROUPS`.
 - **Admin dashboard**: Bull Board at `http://127.0.0.1:<ADMIN_PORT>/admin/queues` when `ADMIN_ENABLED=true` (default) and a Redis queue is in use.
@@ -31,11 +31,12 @@ import {
   ClaudeAgent,
   CursorAgent,
   CodexAgent,
+  GeminiAgent,
 } from '@capsbharg/agent-connect';
 
 const app = new AgentConnect({
   messaging: [new SlackAdapter(), new TelegramAdapter()],
-  agents: [new ClaudeAgent(), new CursorAgent(), new CodexAgent()],
+  agents: [new ClaudeAgent(), new CursorAgent(), new CodexAgent(), new GeminiAgent()],
 });
 
 await app.start();

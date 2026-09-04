@@ -50,7 +50,8 @@ export class ClaudeAgent implements AgentAdapter {
     // writes/shell commands inside the active project. Set
     // CLAUDE_SKIP_PERMISSIONS=false to require the CLI's own confirmation
     // instead (only useful if the CLI is run somewhere that can prompt).
-    if (this.config.dangerouslySkipPermissions) args.push('--dangerously-skip-permissions');
+    if (this.config.dangerouslySkipPermissions !== false)
+      args.push('--dangerously-skip-permissions');
 
     const handle = runCliProcess(
       this.config.cliPath,

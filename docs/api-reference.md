@@ -46,8 +46,9 @@ Both implement `MessagingAdapter` and resolve their config from environment vari
 - `new ClaudeAgent(config?: ClaudeConfig)`
 - `new CursorAgent(config?: CursorConfig)`
 - `new CodexAgent(config?: CodexConfig)`
+- `new GeminiAgent(config?: GeminiConfig)`
 
-All three implement `AgentAdapter` and resolve their config from environment variables when omitted.
+All four implement `AgentAdapter` and resolve their config from environment variables when omitted.
 
 ## The seven interfaces
 
@@ -65,7 +66,7 @@ See [architecture.md](./architecture.md#the-seven-interfaces-srcinterfaces) for 
 
 ## Config & logging
 
-`loadFromEnv(env?): ResolvedConfig`, `createLogger(options?): Logger`, plus the `ResolvedConfig` sub-types (`SecurityConfig`, `AdminConfig`, `SlackConfig`, `TelegramConfig`, `ClaudeConfig`, `CursorConfig`, `CodexConfig`).
+`loadFromEnv(env?): ResolvedConfig`, `createLogger(options?): Logger`, plus the `ResolvedConfig` sub-types (`SecurityConfig`, `AdminConfig`, `SlackConfig`, `TelegramConfig`, `ClaudeConfig`, `CursorConfig`, `CodexConfig`, `GeminiConfig`).
 
 ## Errors
 

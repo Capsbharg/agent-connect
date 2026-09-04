@@ -24,6 +24,7 @@ describe('loadFromEnv', () => {
     });
     expect(config.cursor).toBeUndefined();
     expect(config.codex).toBeUndefined();
+    expect(config.gemini).toBeUndefined();
   });
 
   it('throws a ConfigError when Slack is only partially configured', () => {
@@ -93,5 +94,20 @@ describe('loadFromEnv', () => {
 
   it('rejects a non-numeric AGENT_WORKER_CONCURRENCY with a ConfigError', () => {
     expect(() => loadFromEnv({ AGENT_WORKER_CONCURRENCY: 'not-a-number' })).toThrow(ConfigError);
+  });
+
+  it('GEMINI_ENABLED=true resolves a Gemini block with yolo defaulting to true', () => {
+    const config = loadFromEnv({ GEMINI_ENABLED: 'true' });
+    expect(config.gemini).toEqual({ cliPath: 'gemini', timeoutMs: 600_000, yolo: true });
+  });
+
+  it('GEMINI_YOLO=false is honored (opt-out of the headless default)', () => {
+    const config = loadFromEnv({ GEMINI_ENABLED: 'true', GEMINI_YOLO: 'false' });
+    expect(config.gemini?.yolo).toBe(false);
+  });
+
+  it('Gemini stays disabled by default even though it is not gated the same way Claude is', () => {
+    expect(loadFromEnv({}).gemini).toBeUndefined();
+    expect(loadFromEnv({ GEMINI_CLI_PATH: '/custom/gemini' }).gemini).toBeUndefined();
   });
 });

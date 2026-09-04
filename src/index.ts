@@ -53,6 +53,7 @@ export type { TelegramAdapterOptions } from './messaging/telegram/TelegramAdapte
 export { ClaudeAgent } from './agents/claude/ClaudeAgent.js';
 export { CursorAgent } from './agents/cursor/CursorAgent.js';
 export { CodexAgent } from './agents/codex/CodexAgent.js';
+export { GeminiAgent } from './agents/gemini/GeminiAgent.js';
 
 // --- Providers (swap any of these in via AgentConnectOptions) --------------
 export { RedisStorageProvider } from './core/storage/RedisStorageProvider.js';
@@ -79,6 +80,7 @@ export type {
   ClaudeConfig,
   CursorConfig,
   CodexConfig,
+  GeminiConfig,
 } from './core/config/types.js';
 export { createLogger } from './core/logger/createLogger.js';
 export type { Logger } from './core/logger/Logger.js';

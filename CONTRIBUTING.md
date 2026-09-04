@@ -9,7 +9,7 @@ Thanks for considering a contribution! This project is small and the architectur
 In practice this means:
 
 - **Adding a messaging platform** (Discord, WhatsApp, ...) → implement `MessagingAdapter` under `src/messaging/<platform>/`, following the shape of `SlackAdapter`/`TelegramAdapter`. You should not need to touch `core/`.
-- **Adding an agent CLI** (Gemini CLI, ...) → implement `AgentAdapter` under `src/agents/<agent>/`, following `ClaudeAgent`/`CursorAgent`/`CodexAgent`. `src/agents/shared/CliProcessRunner.ts` already handles spawn/stream/timeout/cancel for any CLI-based agent.
+- **Adding an agent CLI** (Amazon Q, OpenHands, ...) → implement `AgentAdapter` under `src/agents/<agent>/`, following `ClaudeAgent`/`CursorAgent`/`CodexAgent`/`GeminiAgent`. `src/agents/shared/CliProcessRunner.ts` already handles spawn/stream/timeout/cancel for any CLI-based agent.
 - **Adding a plugin** (GitHub, Jira, ...) → implement `Plugin` (`register(ctx)`), following `AuditLogPlugin`. See [docs/plugin-guide.md](docs/plugin-guide.md).
 
 If a change to add a platform/agent/plugin needs to touch `core/router`, `core/execution`, or `core/commands`, that's a sign the interface is missing something — open an issue to discuss before writing the PR.

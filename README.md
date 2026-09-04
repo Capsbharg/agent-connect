@@ -2,7 +2,7 @@
 
 **Universal middleware between messaging platforms and AI coding agents.**
 
-Mention a bot on Slack or Telegram, pick a project, hand it a task — and watch Claude Code, Cursor, or Codex work in real time, streamed right back into your conversation.
+Mention a bot on Slack or Telegram, pick a project, hand it a task — and watch Claude Code, Cursor, Codex, or Gemini work in real time, streamed right back into your conversation.
 
 [![CI](https://github.com/Capsbharg/agent-connect/actions/workflows/ci.yml/badge.svg)](https://github.com/Capsbharg/agent-connect/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -15,7 +15,7 @@ Mention a bot on Slack or Telegram, pick a project, hand it a task — and watch
 flowchart LR
     A["💬 Slack / Telegram"] --> B["🧭 Router"]
     B --> C["🗂️ Queue"]
-    C --> D["🤖 Claude / Cursor / Codex"]
+    C --> D["🤖 Claude / Cursor / Codex / Gemini"]
     D --> E["📡 streamed progress"]
     E --> A
 ```
@@ -52,7 +52,7 @@ Every messaging platform looks the same to the core. Every AI agent looks the sa
 ## ✨ Features
 
 - 🗂️ **Multi-project support** — register any number of local repos, switch between them per-user with `use <project>`
-- 🤖 **Multi-agent** — Claude Code, Cursor, and Codex can all be registered at once; each user picks their active one with `agent <name>`
+- 🤖 **Multi-agent** — Claude Code, Cursor, Codex, and Gemini can all be registered at once; each user picks their active one with `agent <name>`
 - 🌐 **Multi-platform** — Slack and Telegram today, behind the same `MessagingAdapter` interface WhatsApp/Discord/Teams/etc. would use
 - 📡 **Live streaming** — progress streams into a single, continuously-updated message — no spam
 - 🚦 **Queued & serialized** — one execution per user at a time; extra prompts queue up automatically via BullMQ (or in-memory for local dev)
@@ -76,6 +76,7 @@ Before you start, make sure you have:
    - [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) — `npm install -g @anthropic-ai/claude-code`, then `claude` once to log in. Enabled by default.
    - [Cursor CLI](https://cursor.com/docs/cli) (`cursor-agent`) — optional, needs a `CURSOR_API_KEY`.
    - [OpenAI Codex CLI](https://developers.openai.com/codex) (`codex`) — optional.
+   - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`) — `npm install -g @google/gemini-cli`, then `gemini` once to log in. Optional.
 3. **Redis 5.0+**, for production use — powers the BullMQ execution queue and per-user session storage. Optional for local dev/evaluation (an in-memory fallback is used automatically when `REDIS_URL` is unset — single process only, not for production). Any Redis-compatible server works ([Redis](https://redis.io/), [Memurai](https://www.memurai.com/) on Windows, etc.)
 4. **Credentials for at least one messaging platform** — a Slack app ([walkthrough below](#creating-your-slack-app)) and/or a Telegram bot ([walkthrough below](#creating-your-telegram-bot)). You can enable both at once.
 
@@ -225,6 +226,19 @@ Install per [OpenAI's Codex CLI docs](https://developers.openai.com/codex), then
 CODEX_ENABLED=true
 ```
 
+### Gemini CLI (optional)
+
+```bash
+npm install -g @google/gemini-cli
+gemini   # run once interactively to authenticate
+```
+
+`.env`:
+
+```
+GEMINI_ENABLED=true
+```
+
 Run `npx @capsbharg/agent-connect doctor` after any of the above to confirm the CLI is found on `PATH` and responds to `--version`.
 
 ---
@@ -235,20 +249,20 @@ Run `npx @capsbharg/agent-connect doctor` after any of the above to confirm the 
 
 The full, current list — with defaults and descriptions — lives in [`.env.example`](.env.example). Highlights:
 
-| Variable                                                       | Description                                                                                                                                          |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `REDIS_URL`                                                    | Redis connection string; unset falls back to in-memory storage/queue (dev only)                                                                      |
-| `PROJECTS_CONFIG_PATH`                                         | Path to the project registry JSON file (default `./projects.json`)                                                                                   |
-| `DEFAULT_AGENT`                                                | Which registered agent handles a user's prompts until they run `agent <name>`                                                                        |
-| `AGENT_WORKER_CONCURRENCY`                                     | Max executions processed concurrently across all users (default `4`)                                                                                 |
-| `MAX_QUEUED_PER_IDENTITY`                                      | Max executions (running + queued) a single user may have outstanding at once; further prompts get a reminder instead (default `20`, `0` = unlimited) |
-| `REDIS_KEY_PREFIX`                                             | Namespaces every Redis key this app owns — set it if `REDIS_URL` points at a Redis instance shared with other apps                                   |
-| `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` / `SLACK_APP_TOKEN` | Enable the Slack adapter                                                                                                                             |
-| `TELEGRAM_BOT_TOKEN`                                           | Enable the Telegram adapter                                                                                                                          |
-| `CLAUDE_ENABLED` / `CURSOR_ENABLED` / `CODEX_ENABLED`          | Enable each agent (Claude is on by default)                                                                                                          |
-| `CLAUDE_SKIP_PERMISSIONS` / `CURSOR_FORCE`                     | Run the CLI headless, bypassing its own per-action confirmation (default `true` for both — see [Security Notes](#security-notes))                    |
-| `ALLOWED_USERS` / `ALLOWED_CHANNELS` / `ALLOWED_GROUPS`        | Security allowlists (comma-separated; empty = unrestricted — logged loudly as a warning on startup)                                                  |
-| `ADMIN_ENABLED` / `ADMIN_PORT`                                 | Optional queue dashboard (default on, port `3000`)                                                                                                   |
+| Variable                                                                 | Description                                                                                                                                          |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REDIS_URL`                                                              | Redis connection string; unset falls back to in-memory storage/queue (dev only)                                                                      |
+| `PROJECTS_CONFIG_PATH`                                                   | Path to the project registry JSON file (default `./projects.json`)                                                                                   |
+| `DEFAULT_AGENT`                                                          | Which registered agent handles a user's prompts until they run `agent <name>`                                                                        |
+| `AGENT_WORKER_CONCURRENCY`                                               | Max executions processed concurrently across all users (default `4`)                                                                                 |
+| `MAX_QUEUED_PER_IDENTITY`                                                | Max executions (running + queued) a single user may have outstanding at once; further prompts get a reminder instead (default `20`, `0` = unlimited) |
+| `REDIS_KEY_PREFIX`                                                       | Namespaces every Redis key this app owns — set it if `REDIS_URL` points at a Redis instance shared with other apps                                   |
+| `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` / `SLACK_APP_TOKEN`           | Enable the Slack adapter                                                                                                                             |
+| `TELEGRAM_BOT_TOKEN`                                                     | Enable the Telegram adapter                                                                                                                          |
+| `CLAUDE_ENABLED` / `CURSOR_ENABLED` / `CODEX_ENABLED` / `GEMINI_ENABLED` | Enable each agent (Claude is on by default)                                                                                                          |
+| `CLAUDE_SKIP_PERMISSIONS` / `CURSOR_FORCE` / `GEMINI_YOLO`               | Run the CLI headless, bypassing its own per-action confirmation (default `true` for all three — see [Security Notes](#security-notes))               |
+| `ALLOWED_USERS` / `ALLOWED_CHANNELS` / `ALLOWED_GROUPS`                  | Security allowlists (comma-separated; empty = unrestricted — logged loudly as a warning on startup)                                                  |
+| `ADMIN_ENABLED` / `ADMIN_PORT`                                           | Optional queue dashboard (default on, port `3000`)                                                                                                   |
 
 🔐 Never commit `.env` — it's already excluded via `.gitignore`.
 
@@ -363,11 +377,12 @@ import {
   ClaudeAgent,
   CursorAgent,
   CodexAgent,
+  GeminiAgent,
 } from '@capsbharg/agent-connect';
 
 const app = new AgentConnect({
   messaging: [new SlackAdapter(), new TelegramAdapter()],
-  agents: [new ClaudeAgent(), new CursorAgent(), new CodexAgent()],
+  agents: [new ClaudeAgent(), new CursorAgent(), new CodexAgent(), new GeminiAgent()],
 });
 
 await app.start();
@@ -424,7 +439,7 @@ Clean Architecture, SOLID, dependency injection, adapter pattern — every messa
 
 ## 🔒 Security Notes
 
-- **Agents run headless, with no per-action confirmation.** `ClaudeAgent` always passes `--dangerously-skip-permissions` and `CursorAgent` always passes `--force` by default (`CLAUDE_SKIP_PERMISSIONS` / `CURSOR_FORCE`, both default `true`) — this is what lets them respond to a chat message without a human watching a terminal to approve each file write/command. It also means **any user who is authorized to prompt the bot can direct arbitrary file writes and shell command execution inside whichever project is active**, with no human-in-the-loop gate after that point. `CodexAgent` is comparatively safer by default (`--sandbox workspace-write`).
+- **Agents run headless, with no per-action confirmation.** `ClaudeAgent` always passes `--dangerously-skip-permissions`, `CursorAgent` always passes `--force`, and `GeminiAgent` always passes `--yolo` by default (`CLAUDE_SKIP_PERMISSIONS` / `CURSOR_FORCE` / `GEMINI_YOLO`, all default `true`) — this is what lets them respond to a chat message without a human watching a terminal to approve each file write/command. It also means **any user who is authorized to prompt the bot can direct arbitrary file writes and shell command execution inside whichever project is active**, with no human-in-the-loop gate after that point. `CodexAgent` is comparatively safer by default (`--sandbox workspace-write`).
 - **`ALLOWED_USERS`/`ALLOWED_CHANNELS`/`ALLOWED_GROUPS` are the actual restriction, not headless mode.** Leave them blank and _everyone_ who can message the bot (every member of the Slack workspace/Telegram chat it's in) gets the access described above, to every registered project. AgentConnect logs a loud startup warning when all three are empty — set at least `ALLOWED_USERS` before anything beyond solo/local use.
 - `projects.json` and `.env` are both gitignored — they hold your real local paths and platform credentials respectively. Never commit them or paste their contents into an issue/PR.
 - Only entries in your own `projects.json` are ever reachable; `use <project>` matches project names as an exact allowlist lookup, never as a filesystem path built from user input.

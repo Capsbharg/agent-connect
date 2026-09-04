@@ -53,6 +53,8 @@
     "claude-code",
     "cursor",
     "codex",
+    "gemini",
+    "gemini-cli",
     "anthropic",
     "ai-agent",
     "llm",

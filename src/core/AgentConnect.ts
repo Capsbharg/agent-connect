@@ -9,6 +9,7 @@ import type { StorageProvider } from '../interfaces/StorageProvider.js';
 import { CodexAgent } from '../agents/codex/CodexAgent.js';
 import { CursorAgent } from '../agents/cursor/CursorAgent.js';
 import { ClaudeAgent } from '../agents/claude/ClaudeAgent.js';
+import { GeminiAgent } from '../agents/gemini/GeminiAgent.js';
 import { SlackAdapter } from '../messaging/slack/SlackAdapter.js';
 import { TelegramAdapter } from '../messaging/telegram/TelegramAdapter.js';
 import { QueueDashboard } from './admin/QueueDashboard.js';
@@ -275,6 +276,7 @@ export class AgentConnect {
     if (config.claude) agents.push(new ClaudeAgent(config.claude));
     if (config.cursor) agents.push(new CursorAgent(config.cursor));
     if (config.codex) agents.push(new CodexAgent(config.codex));
+    if (config.gemini) agents.push(new GeminiAgent(config.gemini));
     if (agents.length === 0) {
       throw new ConfigError(
         'AgentConnect.fromEnv(): no agent enabled. Set CLAUDE_ENABLED=true (default), CURSOR_ENABLED=true, and/or CODEX_ENABLED=true.',

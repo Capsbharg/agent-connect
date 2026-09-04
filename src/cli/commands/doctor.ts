@@ -3,6 +3,7 @@ import { WebClient } from '@slack/web-api';
 import { ClaudeAgent } from '../../agents/claude/ClaudeAgent.js';
 import { CursorAgent } from '../../agents/cursor/CursorAgent.js';
 import { CodexAgent } from '../../agents/codex/CodexAgent.js';
+import { GeminiAgent } from '../../agents/gemini/GeminiAgent.js';
 import type { AgentAdapter } from '../../interfaces/AgentAdapter.js';
 
 interface CheckResult {
@@ -122,6 +123,18 @@ export async function runDoctor(): Promise<void> {
         new CodexAgent({
           cliPath: process.env.CODEX_CLI_PATH || 'codex',
           timeoutMs: Number(process.env.CODEX_TIMEOUT_MS) || 600_000,
+        }),
+      ),
+    );
+  }
+  if (process.env.GEMINI_ENABLED === 'true') {
+    checks.push(
+      checkAgent(
+        'Gemini CLI',
+        new GeminiAgent({
+          cliPath: process.env.GEMINI_CLI_PATH || 'gemini',
+          timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS) || 600_000,
+          yolo: true,
         }),
       ),
     );

@@ -31,7 +31,7 @@ flowchart LR
 | Interface                | Job                                                                                          | Built-in implementations                                           |
 | ------------------------ | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `MessagingAdapter`       | Receive messages, create a `StreamingResponder`                                              | `SlackAdapter`, `TelegramAdapter`                                  |
-| `AgentAdapter`           | Execute a prompt, stream progress, support cancel/health-check                               | `ClaudeAgent`, `CursorAgent`, `CodexAgent`                         |
+| `AgentAdapter`           | Execute a prompt, stream progress, support cancel/health-check                               | `ClaudeAgent`, `CursorAgent`, `CodexAgent`, `GeminiAgent`          |
 | `QueueProvider`          | Enqueue/process/cancel executions                                                            | `BullMQQueueProvider` (Redis), `InMemoryQueueProvider` (dev/tests) |
 | `StorageProvider`        | JSON key-value store for sessions                                                            | `RedisStorageProvider`, `InMemoryStorageProvider`                  |
 | `AuthenticationProvider` | Resolve an `Identity` from an `InboundMessage`                                               | `PassthroughAuthenticationProvider`                                |
@@ -64,6 +64,7 @@ agents/shared/        CliProcessRunner (spawn/stream/timeout/cancel for any CLI 
 agents/claude/        ClaudeAgent + ClaudeStreamParser
 agents/cursor/        CursorAgent + CursorStreamParser
 agents/codex/         CodexAgent + CodexStreamParser
+agents/gemini/        GeminiAgent + GeminiStreamParser
 cli/                  `agent-connect init` / `agent-connect doctor`
 ```
 
@@ -74,14 +75,14 @@ Adding a new messaging platform or agent means implementing exactly one interfac
 | Category  | Planned, not implemented                                                                                                    |
 | --------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Messaging | WhatsApp, Discord, Microsoft Teams, Signal, Email, GitHub Issues, GitLab Issues, Web Chat                                   |
-| Agents    | Gemini CLI, OpenHands, Amazon Q, CodeRabbit, custom agents                                                                  |
+| Agents    | OpenHands, Amazon Q, CodeRabbit, custom agents                                                                              |
 | Plugins   | GitHub, GitLab, Jira (see [plugin-guide.md](./plugin-guide.md) — `AuditLogPlugin` is the one real reference implementation) |
 
 ## Security
 
 - Project selection is an **exact-key allowlist** (`ProjectRegistry`) — a project name is never concatenated or joined into a filesystem path.
 - Every CLI-based agent spawns via `cross-spawn` with an **argv array**, never a shell string.
-- `ClaudeAgent`/`CursorAgent` run headless by default (`--dangerously-skip-permissions` / `--force`, gated by `CLAUDE_SKIP_PERMISSIONS`/`CURSOR_FORCE`) — no per-action confirmation, so `AllowListAuthorizationProvider` is the actual access boundary, not the agent CLI itself. `AgentConnect.start()` logs a loud warning when `ALLOWED_USERS`/`ALLOWED_CHANNELS`/`ALLOWED_GROUPS` are all empty.
+- `ClaudeAgent`/`CursorAgent`/`GeminiAgent` run headless by default (`--dangerously-skip-permissions` / `--force` / `--yolo`, gated by `CLAUDE_SKIP_PERMISSIONS`/`CURSOR_FORCE`/`GEMINI_YOLO`) — no per-action confirmation, so `AllowListAuthorizationProvider` is the actual access boundary, not the agent CLI itself. `AgentConnect.start()` logs a loud warning when `ALLOWED_USERS`/`ALLOWED_CHANNELS`/`ALLOWED_GROUPS` are all empty.
 - Config is validated with `zod` and fails fast with a clear error (`core/config/loadFromEnv.ts`).
 - `AllowListAuthorizationProvider` enforces `ALLOWED_USERS` / `ALLOWED_CHANNELS` / `ALLOWED_GROUPS`.
 - `MAX_QUEUED_PER_IDENTITY` bounds how many executions (running + queued) a single identity may have outstanding, enforced in `Router` before a prompt is enqueued.

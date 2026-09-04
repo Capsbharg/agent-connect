@@ -26,21 +26,28 @@ export interface TelegramConfig {
 export interface ClaudeConfig {
   cliPath: string;
   timeoutMs: number;
-  /** Passes `--dangerously-skip-permissions` to run headless. Defaults to true — set to false to require the CLI's own per-action confirmation (only meaningful if you run the CLI in a context that can prompt). */
-  dangerouslySkipPermissions: boolean;
+  /** Passes `--dangerously-skip-permissions` to run headless. Defaults to true (including when omitted entirely) — set to false to require the CLI's own per-action confirmation (only meaningful if you run the CLI in a context that can prompt). */
+  dangerouslySkipPermissions?: boolean;
 }
 
 export interface CursorConfig {
   cliPath: string;
   apiKey?: string;
   timeoutMs: number;
-  /** Passes `--force` to run headless. Defaults to true — set to false to require the CLI's own per-action confirmation. */
-  force: boolean;
+  /** Passes `--force` to run headless. Defaults to true (including when omitted entirely) — set to false to require the CLI's own per-action confirmation. */
+  force?: boolean;
 }
 
 export interface CodexConfig {
   cliPath: string;
   timeoutMs: number;
+}
+
+export interface GeminiConfig {
+  cliPath: string;
+  timeoutMs: number;
+  /** Passes `--yolo` to auto-approve every tool call, so the CLI can run headless. Defaults to true (including when omitted entirely) — set to false to require the CLI's own per-action confirmation. */
+  yolo?: boolean;
 }
 
 /**
@@ -65,4 +72,5 @@ export interface ResolvedConfig {
   claude?: ClaudeConfig;
   cursor?: CursorConfig;
   codex?: CodexConfig;
+  gemini?: GeminiConfig;
 }

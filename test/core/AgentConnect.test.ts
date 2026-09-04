@@ -91,6 +91,17 @@ describe('AgentConnect.fromEnv()', () => {
     const app = AgentConnect.fromEnv({ TELEGRAM_BOT_TOKEN: 'tok', ADMIN_ENABLED: 'false' });
     expect(app).toBeInstanceOf(AgentConnect);
   });
+
+  it('builds successfully with Gemini registered and selected as the default agent', () => {
+    const app = AgentConnect.fromEnv({
+      TELEGRAM_BOT_TOKEN: 'tok',
+      ADMIN_ENABLED: 'false',
+      CLAUDE_ENABLED: 'false',
+      GEMINI_ENABLED: 'true',
+      DEFAULT_AGENT: 'gemini',
+    });
+    expect(app).toBeInstanceOf(AgentConnect);
+  });
 });
 
 describe('AgentConnect.start() security warning', () => {

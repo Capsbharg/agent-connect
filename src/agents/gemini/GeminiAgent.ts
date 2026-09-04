@@ -1,6 +1,6 @@
 import type { AgentAdapter } from '../../interfaces/AgentAdapter.js';
 import { loadFromEnv } from '../../core/config/index.js';
-import type { CursorConfig } from '../../core/config/types.js';
+import type { GeminiConfig } from '../../core/config/types.js';
 import { ConfigError } from '../../core/errors.js';
 import type {
   AgentExecutionHandle,
@@ -9,30 +9,19 @@ import type {
 } from '../../core/types.js';
 import { runCliProcess } from '../shared/CliProcessRunner.js';
 import { parseJsonLine } from '../shared/ndjsonParser.js';
-import { translateCursorEvent } from './CursorStreamParser.js';
+import { translateGeminiEvent } from './GeminiStreamParser.js';
 
-/**
- * AgentAdapter backed by the Cursor CLI (`cursor-agent`). Same
- * spawn/stream/timeout/cancel pattern as ClaudeAgent — see CursorStreamParser
- * for the caveat on its event schema being best-effort.
- */
-export class CursorAgent implements AgentAdapter {
-  readonly name = 'cursor';
-  private readonly config: CursorConfig;
+/** AgentAdapter backed by the Gemini CLI (`gemini`). Same spawn/stream/timeout/cancel pattern as ClaudeAgent. */
+export class GeminiAgent implements AgentAdapter {
+  readonly name = 'gemini';
+  private readonly config: GeminiConfig;
 
-  constructor(config?: CursorConfig) {
-    const resolved = config ?? loadFromEnv().cursor;
+  constructor(config?: GeminiConfig) {
+    const resolved = config ?? loadFromEnv().gemini;
     if (!resolved) {
-      throw new ConfigError('CursorAgent: no config provided and CURSOR_ENABLED is not "true".');
+      throw new ConfigError('GeminiAgent: no config provided and GEMINI_ENABLED is not "true".');
     }
     this.config = resolved;
-  }
-
-  private buildEnv(extra?: Record<string, string>): Record<string, string> {
-    return {
-      ...(extra ?? {}),
-      ...(this.config.apiKey ? { CURSOR_API_KEY: this.config.apiKey } : {}),
-    };
   }
 
   healthCheck(): Promise<AgentHealthStatus> {
@@ -40,7 +29,6 @@ export class CursorAgent implements AgentAdapter {
       const handle = runCliProcess(this.config.cliPath, ['--version'], {
         cwd: process.cwd(),
         timeoutMs: 10_000,
-        env: this.buildEnv(),
       });
       handle.done.then((result) => {
         resolve(
@@ -54,28 +42,23 @@ export class CursorAgent implements AgentAdapter {
 
   execute(request: AgentExecutionRequest): AgentExecutionHandle {
     let answer = '';
-    let finalResult: { success: boolean; outputText: string } | null = null;
+    let finalResult: { success: boolean; outputText: string; errorMessage?: string } | null = null;
 
-    const args = ['-p', '--output-format', 'stream-json'];
+    const args = ['-p', request.prompt, '--output-format', 'stream-json'];
     // Runs headless (no human to answer the CLI's own per-action confirmation
     // prompts) — see the same note on ClaudeAgent's --dangerously-skip-permissions.
-    // Set CURSOR_FORCE=false to require the CLI's own confirmation instead.
-    if (this.config.force !== false) args.push('--force');
-    args.push(request.prompt);
+    // Set GEMINI_YOLO=false to require the CLI's own confirmation instead.
+    if (this.config.yolo !== false) args.push('--yolo');
 
     const handle = runCliProcess(
       this.config.cliPath,
       args,
-      {
-        cwd: request.cwd,
-        timeoutMs: request.timeoutMs ?? this.config.timeoutMs,
-        env: this.buildEnv(request.env),
-      },
+      { cwd: request.cwd, timeoutMs: request.timeoutMs ?? this.config.timeoutMs, env: request.env },
       {
         onLine: (line) => {
           const json = parseJsonLine(line);
           if (json === null) return;
-          const { progressLines, answerDelta, final } = translateCursorEvent(json);
+          const { progressLines, answerDelta, final } = translateGeminiEvent(json);
           if (progressLines && request.onProgress) {
             for (const text of progressLines) request.onProgress({ text });
           }
@@ -87,12 +70,14 @@ export class CursorAgent implements AgentAdapter {
 
     const result = handle.done.then((runResult) => ({
       success: runResult.success && (!finalResult || finalResult.success),
-      outputText: finalResult?.outputText || answer || '',
+      // Gemini's own "result" event carries no answer text (unlike Claude's) —
+      // the accumulated assistant message deltas are the only source.
+      outputText: answer || '',
       durationMs: runResult.durationMs,
       exitCode: runResult.exitCode,
       cancelled: runResult.cancelled,
       timedOut: runResult.timedOut,
-      errorMessage: runResult.errorMessage,
+      errorMessage: runResult.errorMessage ?? finalResult?.errorMessage,
     }));
 
     return { cancel: handle.cancel, result };

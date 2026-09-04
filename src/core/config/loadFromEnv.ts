@@ -47,6 +47,11 @@ const rawEnvSchema = z.object({
   CODEX_ENABLED: z.string().optional(),
   CODEX_CLI_PATH: z.string().optional(),
   CODEX_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+
+  GEMINI_ENABLED: z.string().optional(),
+  GEMINI_CLI_PATH: z.string().optional(),
+  GEMINI_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+  GEMINI_YOLO: boolString,
 });
 
 function splitList(value: string | undefined): string[] {
@@ -128,6 +133,15 @@ export function loadFromEnv(env: NodeJS.ProcessEnv = process.env): ResolvedConfi
       }
     : undefined;
 
+  const geminiEnabled = (raw.GEMINI_ENABLED ?? 'false').toLowerCase() === 'true';
+  const gemini: ResolvedConfig['gemini'] = geminiEnabled
+    ? {
+        cliPath: raw.GEMINI_CLI_PATH ?? 'gemini',
+        timeoutMs: raw.GEMINI_TIMEOUT_MS ?? 600_000,
+        yolo: raw.GEMINI_YOLO,
+      }
+    : undefined;
+
   // Whole-app validation (at least one platform/agent configured, DEFAULT_AGENT
   // matches an enabled agent) is AgentConnect.fromEnv()'s job, not this
   // function's — a single adapter/agent class resolving just its own slice of
@@ -157,5 +171,6 @@ export function loadFromEnv(env: NodeJS.ProcessEnv = process.env): ResolvedConfi
     claude,
     cursor,
     codex,
+    gemini,
   };
 }
