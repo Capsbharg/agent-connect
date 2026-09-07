@@ -2,7 +2,7 @@
 
 **Universal middleware between messaging platforms and AI coding agents.**
 
-Mention a bot on Slack or Telegram, pick a project, hand it a task — and watch Claude Code, Cursor, Codex, or Gemini work in real time, streamed right back into your conversation.
+Mention a bot on Slack, Telegram, or Discord, pick a project, hand it a task — and watch Claude Code, Cursor, Codex, or Gemini work in real time, streamed right back into your conversation.
 
 [![CI](https://github.com/Capsbharg/agent-connect/actions/workflows/ci.yml/badge.svg)](https://github.com/Capsbharg/agent-connect/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -14,7 +14,7 @@ Mention a bot on Slack or Telegram, pick a project, hand it a task — and watch
 
 ```mermaid
 flowchart LR
-    A["💬 Slack / Telegram"] --> B["🧭 Router"]
+    A["💬 Slack / Telegram / Discord"] --> B["🧭 Router"]
     B --> C["🗂️ Queue"]
     C --> D["🤖 Claude / Cursor / Codex / Gemini"]
     D --> E["📡 streamed progress"]
@@ -32,6 +32,7 @@ Every messaging platform looks the same to the core. Every AI agent looks the sa
 - [🚀 Quick Start](#quick-start)
 - [🤖 Creating Your Slack App](#creating-your-slack-app)
 - [✈️ Creating Your Telegram Bot](#creating-your-telegram-bot)
+- [🎮 Creating Your Discord Bot](#creating-your-discord-bot)
 - [🧠 Setting Up Your Agents](#setting-up-your-agents)
 - [⚙️ Environment Variables](#environment-variables)
 - [📁 Project Registry](#project-registry)
@@ -55,7 +56,7 @@ Every messaging platform looks the same to the core. Every AI agent looks the sa
 
 - 🗂️ **Multi-project support** — register any number of local repos, switch between them per-user with `use <project>`
 - 🤖 **Multi-agent** — Claude Code, Cursor, Codex, and Gemini can all be registered at once; each user picks their active one with `agent <name>`
-- 🌐 **Multi-platform** — Slack and Telegram today, behind the same `MessagingAdapter` interface WhatsApp/Discord/Teams/etc. would use
+- 🌐 **Multi-platform** — Slack, Telegram, and Discord today, behind the same `MessagingAdapter` interface WhatsApp/Teams/etc. would use
 - 📡 **Live streaming** — progress streams into a single, continuously-updated message — no spam
 - 🚦 **Queued & serialized** — one execution per user at a time; extra prompts queue up automatically via BullMQ (or in-memory for local dev)
 - ⛔ **Cancellable** — stop everything with `cancel`, or a single execution by id with `cancel <id>` (`status` lists ids)
@@ -80,7 +81,7 @@ Before you start, make sure you have:
    - [OpenAI Codex CLI](https://developers.openai.com/codex) (`codex`) — optional.
    - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`) — `npm install -g @google/gemini-cli`, then `gemini` once to log in. Optional.
 3. **Redis 5.0+**, for production use — powers the BullMQ execution queue and per-user session storage. Optional for local dev/evaluation (an in-memory fallback is used automatically when `REDIS_URL` is unset — single process only, not for production). Any Redis-compatible server works ([Redis](https://redis.io/), [Memurai](https://www.memurai.com/) on Windows, etc.)
-4. **Credentials for at least one messaging platform** — a Slack app ([walkthrough below](#creating-your-slack-app)) and/or a Telegram bot ([walkthrough below](#creating-your-telegram-bot)). You can enable both at once.
+4. **Credentials for at least one messaging platform** — a Slack app ([walkthrough below](#creating-your-slack-app)), a Telegram bot ([walkthrough below](#creating-your-telegram-bot)), and/or a Discord bot ([walkthrough below](#creating-your-discord-bot)). You can enable more than one at once.
 
 ---
 
@@ -98,7 +99,7 @@ npm init -y
 npm install @capsbharg/agent-connect
 ```
 
-**Step 2 — get your credentials.** Follow [Creating Your Slack App](#creating-your-slack-app) and/or [Creating Your Telegram Bot](#creating-your-telegram-bot) below — you'll be asked for these in the next step.
+**Step 2 — get your credentials.** Follow [Creating Your Slack App](#creating-your-slack-app), [Creating Your Telegram Bot](#creating-your-telegram-bot), and/or [Creating Your Discord Bot](#creating-your-discord-bot) below — you'll be asked for these in the next step.
 
 **Step 3 — scaffold your config:**
 
@@ -106,7 +107,7 @@ npm install @capsbharg/agent-connect
 npx @capsbharg/agent-connect init
 ```
 
-Interactively asks which platforms/agents to enable, your Slack/Telegram credentials, and your first project's absolute path — then writes `.env`, `projects.json`, and `agent-connect.example.mjs` into the current directory, and automatically runs `doctor` to verify everything (agent CLI(s) on `PATH`, Redis reachable if configured, Slack/Telegram tokens valid).
+Interactively asks which platforms/agents to enable, your Slack/Telegram/Discord credentials, and your first project's absolute path — then writes `.env`, `projects.json`, and `agent-connect.example.mjs` into the current directory, and automatically runs `doctor` to verify everything (agent CLI(s) on `PATH`, Redis reachable if configured, platform tokens valid).
 
 **Step 4 — run it:**
 
@@ -114,7 +115,7 @@ Interactively asks which platforms/agents to enable, your Slack/Telegram credent
 node agent-connect.example.mjs
 ```
 
-**Step 5 — try it.** In Slack or Telegram, message the bot: `use my-app`, then give it a task (see [Example Walkthrough](#example-walkthrough)).
+**Step 5 — try it.** In Slack, Telegram, or Discord, message the bot: `use my-app`, then give it a task (see [Example Walkthrough](#example-walkthrough)).
 
 > 🧪 **Want to see it working end-to-end first?** [`demo/`](demo/) in this repo is a complete, self-contained example — Slack adapter, the real Claude Code agent, a Redis-backed BullMQ queue, and the queue dashboard, all wired together. Copy the folder anywhere, `npm install`, fill in `.env`/`projects.json`, and `npm run slack`.
 
@@ -196,6 +197,39 @@ Search for your bot's username in Telegram and start a private chat, or add it t
 
 ---
 
+<a id="creating-your-discord-bot"></a>
+
+## 🎮 Creating Your Discord Bot
+
+You'll need a Discord application with a bot user, two **privileged gateway intents**, and the right invite scopes.
+
+### 1️⃣ Create the application
+
+Go to the [Discord Developer Portal](https://discord.com/developers/applications) → **New Application** → name it (e.g. `Agent Connect`) → **Bot** in the sidebar → **Add Bot** if it isn't already there.
+
+### 2️⃣ Enable Privileged Gateway Intents
+
+Still on the **Bot** page, scroll to **Privileged Gateway Intents** and turn on:
+
+| Intent            | Why                                                                                            |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `MESSAGE CONTENT` | Without it, every message arrives with empty text                                              |
+| `SERVER MEMBERS`  | Not required for a fresh setup, but harmless to enable if you plan to extend the adapter later |
+
+### 3️⃣ Copy the token
+
+**Bot** page → **Reset Token** (if none is shown yet) → copy it. That's your `DISCORD_BOT_TOKEN`. Treat it like a password — anyone with it can control your bot.
+
+### 4️⃣ Invite the bot to a server
+
+**OAuth2 → URL Generator** → **Scopes**: check `bot` → **Bot Permissions**: check `Send Messages`, `Read Message History`, and `Attach Files` (if you want attachment support) → open the generated URL and pick a server.
+
+### 5️⃣ Say hello 👋
+
+`@your-bot-name` in a server channel it's in, or DM it directly — no invite needed for a DM.
+
+---
+
 <a id="setting-up-your-agents"></a>
 
 ## 🧠 Setting Up Your Agents
@@ -261,6 +295,7 @@ The full, current list — with defaults and descriptions — lives in [`.env.ex
 | `REDIS_KEY_PREFIX`                                                       | Namespaces every Redis key this app owns — set it if `REDIS_URL` points at a Redis instance shared with other apps                                   |
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` / `SLACK_APP_TOKEN`           | Enable the Slack adapter                                                                                                                             |
 | `TELEGRAM_BOT_TOKEN`                                                     | Enable the Telegram adapter                                                                                                                          |
+| `DISCORD_BOT_TOKEN`                                                      | Enable the Discord adapter                                                                                                                           |
 | `CLAUDE_ENABLED` / `CURSOR_ENABLED` / `CODEX_ENABLED` / `GEMINI_ENABLED` | Enable each agent (Claude is on by default)                                                                                                          |
 | `CLAUDE_SKIP_PERMISSIONS` / `CURSOR_FORCE` / `GEMINI_YOLO`               | Run the CLI headless, bypassing its own per-action confirmation (default `true` for all three — see [Security Notes](#security-notes))               |
 | `ALLOWED_USERS` / `ALLOWED_CHANNELS` / `ALLOWED_GROUPS`                  | Security allowlists (comma-separated; empty = unrestricted — logged loudly as a warning on startup)                                                  |
@@ -279,11 +314,23 @@ An agent only ever runs inside a project directory you've explicitly registered 
 ```json
 {
   "backend-api": "/path/to/your/backend-api",
-  "frontend-web": "/path/to/your/frontend-web"
+  "frontend-web": "/path/to/your/frontend-web",
+  "mobile-app": {
+    "path": "/path/to/your/mobile-app",
+    "agent": "cursor",
+    "model": "gpt-5"
+  }
 }
 ```
 
 `projects.json` is gitignored (it contains your local filesystem layout). Entries whose path doesn't exist are skipped at startup with a logged warning. `use <project>` matches names **exactly** against a key in this file — user input is never concatenated into a filesystem path, so there's no path-traversal risk from the project name itself.
+
+**Per-project agent/model overrides.** Each entry can be a plain path string (as above) or an object `{ path, agent?, model? }`:
+
+- `agent` — the default agent for this project (e.g. `"cursor"`), overriding `DEFAULT_AGENT`. A user's own `agent <name>` selection always wins over this — the override only kicks in when nobody's explicitly chosen an agent yet.
+- `model` — passed straight through to whichever agent runs, as `--model`/`-m`. Useful for pinning a specific project to a stronger (or cheaper/faster) model than the rest of your projects.
+
+Both are optional and independent — set either, both, or neither per project.
 
 ---
 
@@ -310,6 +357,7 @@ On success you'll see log lines like:
 ```
 [INFO] Slack adapter connected (Socket Mode)
 [INFO] Telegram adapter connected (long polling)
+[INFO] Discord adapter connected (gateway)
 [INFO] Queue dashboard: http://127.0.0.1:3000/admin/queues
 [INFO] AgentConnect started
 ```
@@ -322,7 +370,7 @@ Stop it with `Ctrl+C` (`SIGINT`) — the example entrypoint handles graceful shu
 
 ## 💬 Commands
 
-Send these as a Slack mention/DM, or a Telegram message/`/command`. Anything else is treated as a prompt and sent to your active agent.
+Send these as a Slack mention/DM, a Telegram message/`/command`, or a Discord mention/DM. Anything else is treated as a prompt and sent to your active agent.
 
 | Command            | Description                                                              |
 | ------------------ | ------------------------------------------------------------------------ |
@@ -365,6 +413,10 @@ Running `npm test`...
 
 Only one execution runs per user at a time — additional prompts from the same user queue up and run in order. `status` shows what's running/queued; `cancel` stops the current run and clears anything still queued. Want a different agent for this task? `agent cursor` (or `codex`) switches it before your next prompt.
 
+**Multi-turn conversations.** With Claude or Codex, your next prompt in the same project automatically continues the previous conversation (Claude's `--resume`, Codex's `exec resume`) instead of starting fresh each time — the agent keeps whatever context it built up. Run `use <project>` again (even re-selecting the project you're already in) to intentionally start a new conversation. Cursor and Gemini don't support this yet — see [docs/architecture.md](docs/architecture.md) for why.
+
+**File attachments.** On Telegram or Discord, attach a file to your message — it's downloaded into the project (under `.agent-connect-attachments/`, cleaned up after each run) and the agent is told where to find it, so it can read the file with its own tools if relevant.
+
 ---
 
 <a id="public-api"></a>
@@ -376,6 +428,7 @@ import {
   AgentConnect,
   SlackAdapter,
   TelegramAdapter,
+  DiscordAdapter,
   ClaudeAgent,
   CursorAgent,
   CodexAgent,
@@ -383,7 +436,7 @@ import {
 } from '@capsbharg/agent-connect';
 
 const app = new AgentConnect({
-  messaging: [new SlackAdapter(), new TelegramAdapter()],
+  messaging: [new SlackAdapter(), new TelegramAdapter(), new DiscordAdapter()],
   agents: [new ClaudeAgent(), new CursorAgent(), new CodexAgent(), new GeminiAgent()],
 });
 
@@ -407,11 +460,11 @@ See [docs/developer-guide.md](docs/developer-guide.md) for the full options refe
 
 ## 🛠️ CLI Reference
 
-| Command                               | What it does                                                                                                                          |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `npx @capsbharg/agent-connect init`   | Interactively writes `.env`, `projects.json`, and an example entrypoint into the current directory, then runs `doctor`                |
-| `npx @capsbharg/agent-connect doctor` | Checks agent CLIs are on `PATH` (`--version`), pings Redis if configured, and validates Slack (`auth.test`)/Telegram (`getMe`) tokens |
-| `npx @capsbharg/agent-connect --help` | Show usage                                                                                                                            |
+| Command                               | What it does                                                                                                                                                |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx @capsbharg/agent-connect init`   | Interactively writes `.env`, `projects.json`, and an example entrypoint into the current directory, then runs `doctor`                                      |
+| `npx @capsbharg/agent-connect doctor` | Checks agent CLIs are on `PATH` (`--version`), pings Redis if configured, and validates Slack (`auth.test`)/Telegram (`getMe`)/Discord (`users/@me`) tokens |
+| `npx @capsbharg/agent-connect --help` | Show usage                                                                                                                                                  |
 
 ---
 
@@ -442,7 +495,7 @@ Clean Architecture, SOLID, dependency injection, adapter pattern — every messa
 ## 🔒 Security Notes
 
 - **Agents run headless, with no per-action confirmation.** `ClaudeAgent` always passes `--dangerously-skip-permissions`, `CursorAgent` always passes `--force`, and `GeminiAgent` always passes `--yolo` by default (`CLAUDE_SKIP_PERMISSIONS` / `CURSOR_FORCE` / `GEMINI_YOLO`, all default `true`) — this is what lets them respond to a chat message without a human watching a terminal to approve each file write/command. It also means **any user who is authorized to prompt the bot can direct arbitrary file writes and shell command execution inside whichever project is active**, with no human-in-the-loop gate after that point. `CodexAgent` is comparatively safer by default (`--sandbox workspace-write`).
-- **`ALLOWED_USERS`/`ALLOWED_CHANNELS`/`ALLOWED_GROUPS` are the actual restriction, not headless mode.** Leave them blank and _everyone_ who can message the bot (every member of the Slack workspace/Telegram chat it's in) gets the access described above, to every registered project. AgentConnect logs a loud startup warning when all three are empty — set at least `ALLOWED_USERS` before anything beyond solo/local use.
+- **`ALLOWED_USERS`/`ALLOWED_CHANNELS`/`ALLOWED_GROUPS` are the actual restriction, not headless mode.** Leave them blank and _everyone_ who can message the bot (every member of the Slack workspace/Telegram chat/Discord server it's in) gets the access described above, to every registered project. AgentConnect logs a loud startup warning when all three are empty — set at least `ALLOWED_USERS` before anything beyond solo/local use.
 - `projects.json` and `.env` are both gitignored — they hold your real local paths and platform credentials respectively. Never commit them or paste their contents into an issue/PR.
 - Only entries in your own `projects.json` are ever reachable; `use <project>` matches project names as an exact allowlist lookup, never as a filesystem path built from user input.
 - Every agent CLI is always launched via `spawn` with an argv array — never a shell string — so prompts can never be interpreted as shell commands.

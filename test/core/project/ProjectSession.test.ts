@@ -52,4 +52,62 @@ describe('ProjectSession', () => {
     expect((await session.get('U1'))?.project).toBe('demo-a');
     expect((await session.get('U2'))?.project).toBe('demo-b');
   });
+
+  describe('getSessionId() / setSessionId()', () => {
+    it('returns undefined when nothing has been stored for that agent', async () => {
+      const session = new ProjectSession(new InMemoryStorageProvider());
+      await session.setActiveProject('U1', 'demo', '/repo/demo');
+      expect(await session.getSessionId('U1', 'claude')).toBeUndefined();
+    });
+
+    it('setSessionId()/getSessionId() round-trip, keyed independently per agent', async () => {
+      const session = new ProjectSession(new InMemoryStorageProvider());
+      await session.setActiveProject('U1', 'demo', '/repo/demo');
+
+      await session.setSessionId('U1', 'claude', 'claude-session-1');
+      await session.setSessionId('U1', 'codex', 'codex-session-1');
+
+      expect(await session.getSessionId('U1', 'claude')).toBe('claude-session-1');
+      expect(await session.getSessionId('U1', 'codex')).toBe('codex-session-1');
+    });
+
+    it('setSessionId() is a no-op when the identity has no active project', async () => {
+      const session = new ProjectSession(new InMemoryStorageProvider());
+      await expect(session.setSessionId('U1', 'claude', 'abc')).resolves.toBeUndefined();
+      expect(await session.get('U1')).toBeNull();
+    });
+
+    it("setSessionId() does not disturb project/cwd or another agent's session id", async () => {
+      const session = new ProjectSession(new InMemoryStorageProvider());
+      await session.setActiveProject('U1', 'demo', '/repo/demo');
+      await session.setSessionId('U1', 'claude', 'claude-session-1');
+
+      await session.setSessionId('U1', 'codex', 'codex-session-1');
+
+      const state = await session.get('U1');
+      expect(state).toMatchObject({ project: 'demo', cwd: '/repo/demo' });
+      expect(await session.getSessionId('U1', 'claude')).toBe('claude-session-1');
+    });
+
+    it('re-running setActiveProject (even for the same project) resets stored session ids — the intentional "start fresh" mechanism', async () => {
+      const session = new ProjectSession(new InMemoryStorageProvider());
+      await session.setActiveProject('U1', 'demo', '/repo/demo');
+      await session.setSessionId('U1', 'claude', 'claude-session-1');
+
+      await session.setActiveProject('U1', 'demo', '/repo/demo');
+
+      expect(await session.getSessionId('U1', 'claude')).toBeUndefined();
+    });
+
+    it('clear() also drops any stored session ids along with the project selection', async () => {
+      const session = new ProjectSession(new InMemoryStorageProvider());
+      await session.setActiveProject('U1', 'demo', '/repo/demo');
+      await session.setSessionId('U1', 'claude', 'claude-session-1');
+
+      await session.clear('U1');
+      await session.setActiveProject('U1', 'demo', '/repo/demo');
+
+      expect(await session.getSessionId('U1', 'claude')).toBeUndefined();
+    });
+  });
 });

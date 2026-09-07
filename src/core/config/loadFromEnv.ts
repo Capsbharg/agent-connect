@@ -33,6 +33,10 @@ const rawEnvSchema = z.object({
   TELEGRAM_EDIT_THROTTLE_MS: z.coerce.number().int().nonnegative().optional(),
   TELEGRAM_PROGRESS_MAX_LINES: z.coerce.number().int().positive().optional(),
 
+  DISCORD_BOT_TOKEN: z.string().optional(),
+  DISCORD_EDIT_THROTTLE_MS: z.coerce.number().int().nonnegative().optional(),
+  DISCORD_PROGRESS_MAX_LINES: z.coerce.number().int().positive().optional(),
+
   CLAUDE_ENABLED: boolString,
   CLAUDE_CLI_PATH: z.string().optional(),
   CLAUDE_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
@@ -107,6 +111,15 @@ export function loadFromEnv(env: NodeJS.ProcessEnv = process.env): ResolvedConfi
     };
   }
 
+  let discord: ResolvedConfig['discord'];
+  if (raw.DISCORD_BOT_TOKEN) {
+    discord = {
+      botToken: raw.DISCORD_BOT_TOKEN,
+      editThrottleMs: raw.DISCORD_EDIT_THROTTLE_MS ?? 1500,
+      progressMaxLines: raw.DISCORD_PROGRESS_MAX_LINES ?? 12,
+    };
+  }
+
   const claude: ResolvedConfig['claude'] = raw.CLAUDE_ENABLED
     ? {
         cliPath: raw.CLAUDE_CLI_PATH ?? 'claude',
@@ -168,6 +181,7 @@ export function loadFromEnv(env: NodeJS.ProcessEnv = process.env): ResolvedConfi
     },
     slack,
     telegram,
+    discord,
     claude,
     cursor,
     codex,

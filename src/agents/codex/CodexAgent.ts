@@ -43,21 +43,33 @@ export class CodexAgent implements AgentAdapter {
   execute(request: AgentExecutionRequest): AgentExecutionHandle {
     let answer = '';
     let finalResult: { success: boolean; outputText: string } | null = null;
+    let capturedSessionId: string | undefined;
+
+    // `codex exec resume <thread-id>` continues a prior conversation
+    // (verified: `codex exec resume --help`); `--sandbox` isn't a supported
+    // flag on `resume` (inherited from the original session instead), so
+    // it's only added for a fresh `codex exec`.
+    const args = request.sessionId
+      ? ['exec', 'resume', request.sessionId, '--json']
+      : ['exec', '--json', '--sandbox', 'workspace-write'];
+    if (request.model) args.push('--model', request.model);
+    args.push(request.prompt);
 
     const handle = runCliProcess(
       this.config.cliPath,
-      ['exec', '--json', '--sandbox', 'workspace-write', request.prompt],
+      args,
       { cwd: request.cwd, timeoutMs: request.timeoutMs ?? this.config.timeoutMs, env: request.env },
       {
         onLine: (line) => {
           const json = parseJsonLine(line);
           if (json === null) return;
-          const { progressLines, answerDelta, final } = translateCodexEvent(json);
+          const { progressLines, answerDelta, final, sessionId } = translateCodexEvent(json);
           if (progressLines && request.onProgress) {
             for (const text of progressLines) request.onProgress({ text });
           }
           if (answerDelta) answer += answerDelta;
           if (final) finalResult = final;
+          if (sessionId) capturedSessionId = sessionId;
         },
       },
     );
@@ -70,6 +82,7 @@ export class CodexAgent implements AgentAdapter {
       cancelled: runResult.cancelled,
       timedOut: runResult.timedOut,
       errorMessage: runResult.errorMessage,
+      sessionId: capturedSessionId ?? request.sessionId,
     }));
 
     return { cancel: handle.cancel, result };

@@ -12,6 +12,7 @@ import { ClaudeAgent } from '../agents/claude/ClaudeAgent.js';
 import { GeminiAgent } from '../agents/gemini/GeminiAgent.js';
 import { SlackAdapter } from '../messaging/slack/SlackAdapter.js';
 import { TelegramAdapter } from '../messaging/telegram/TelegramAdapter.js';
+import { DiscordAdapter } from '../messaging/discord/DiscordAdapter.js';
 import { QueueDashboard } from './admin/QueueDashboard.js';
 import { AgentRegistry } from './agentRegistry/AgentRegistry.js';
 import { PassthroughAuthenticationProvider } from './auth/PassthroughAuthenticationProvider.js';
@@ -148,6 +149,7 @@ export class AgentConnect {
       authorization,
       commands: this.commands,
       projectSession,
+      projectRegistry: this.projectRegistry,
       agentRegistry: this.agentRegistry,
       queue: this.queue,
       activeExecutions,
@@ -165,6 +167,7 @@ export class AgentConnect {
       logger: this.logger,
       concurrency: opts.concurrency ?? 4,
       progressMaxLinesByPlatform: opts.progressMaxLinesByPlatform,
+      projectSession,
     });
 
     this.pluginManager = new PluginManager(opts.plugins ?? []);
@@ -266,9 +269,10 @@ export class AgentConnect {
     const messaging: MessagingAdapter[] = [];
     if (config.slack) messaging.push(new SlackAdapter({ config: config.slack, logger }));
     if (config.telegram) messaging.push(new TelegramAdapter({ config: config.telegram, logger }));
+    if (config.discord) messaging.push(new DiscordAdapter({ config: config.discord, logger }));
     if (messaging.length === 0) {
       throw new ConfigError(
-        'AgentConnect.fromEnv(): no messaging platform configured. Set SLACK_BOT_TOKEN+SLACK_SIGNING_SECRET+SLACK_APP_TOKEN and/or TELEGRAM_BOT_TOKEN.',
+        'AgentConnect.fromEnv(): no messaging platform configured. Set SLACK_BOT_TOKEN+SLACK_SIGNING_SECRET+SLACK_APP_TOKEN, TELEGRAM_BOT_TOKEN, and/or DISCORD_BOT_TOKEN.',
       );
     }
 
@@ -293,6 +297,7 @@ export class AgentConnect {
     const progressMaxLinesByPlatform: Record<string, number> = {};
     if (config.slack) progressMaxLinesByPlatform.slack = config.slack.progressMaxLines;
     if (config.telegram) progressMaxLinesByPlatform.telegram = config.telegram.progressMaxLines;
+    if (config.discord) progressMaxLinesByPlatform.discord = config.discord.progressMaxLines;
 
     let storage: StorageProvider;
     let queue: QueueProvider<ExecutionJobPayload>;

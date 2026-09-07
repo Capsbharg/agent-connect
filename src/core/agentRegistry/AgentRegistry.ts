@@ -42,9 +42,17 @@ export class AgentRegistry {
     return this.agents.has(name);
   }
 
-  async getActiveAgentName(identityId: string): Promise<string> {
+  /**
+   * Resolves in order: the identity's own explicit `agent <name>` selection,
+   * then `fallback` (e.g. a project's configured default agent), then the
+   * app-wide default. `fallback` lets a project override the app default
+   * without ever overriding a user's own explicit choice.
+   */
+  async getActiveAgentName(identityId: string, fallback?: string): Promise<string> {
     const selected = await this.storage.get<string>(key(identityId));
-    return selected && this.agents.has(selected) ? selected : this.defaultAgentName;
+    if (selected && this.agents.has(selected)) return selected;
+    if (fallback && this.agents.has(fallback)) return fallback;
+    return this.defaultAgentName;
   }
 
   async setActiveAgent(identityId: string, agentName: string): Promise<void> {

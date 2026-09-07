@@ -1,5 +1,9 @@
 {
   "backend-api": "/path/to/your/backend-api",
   "frontend-web": "/path/to/your/frontend-web",
-  "mobile-app": "/path/to/your/mobile-app"
+  "mobile-app": {
+    "path": "/path/to/your/mobile-app",
+    "agent": "cursor",
+    "model": "gpt-5"
+  }
 }

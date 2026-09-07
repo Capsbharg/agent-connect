@@ -35,6 +35,7 @@ interface RenderEnvOptions {
   agents: string[];
   slack: { botToken: string; signingSecret: string; appToken: string };
   telegram: { botToken: string };
+  discord: { botToken: string };
   redisUrl: string;
 }
 
@@ -69,6 +70,14 @@ function renderEnv(opts: RenderEnvOptions): string {
       `TELEGRAM_BOT_TOKEN=${opts.telegram.botToken}`,
       'TELEGRAM_EDIT_THROTTLE_MS=1500',
       'TELEGRAM_PROGRESS_MAX_LINES=12',
+      '',
+    );
+  }
+  if (opts.platforms.includes('discord')) {
+    lines.push(
+      `DISCORD_BOT_TOKEN=${opts.discord.botToken}`,
+      'DISCORD_EDIT_THROTTLE_MS=1500',
+      'DISCORD_PROGRESS_MAX_LINES=12',
       '',
     );
   }
@@ -121,6 +130,7 @@ export async function runInit(): Promise<void> {
     options: [
       { value: 'slack', label: 'Slack' },
       { value: 'telegram', label: 'Telegram' },
+      { value: 'discord', label: 'Discord' },
     ],
     required: true,
   });
@@ -153,6 +163,11 @@ export async function runInit(): Promise<void> {
     telegram.botToken = await requiredText('Telegram bot token', 'from @BotFather');
   }
 
+  const discord = { botToken: '' };
+  if (platforms.includes('discord')) {
+    discord.botToken = await requiredText('Discord bot token', 'from the Developer Portal');
+  }
+
   const redisUrl = await optionalText(
     'Redis URL (leave blank to use in-memory storage/queue — dev only)',
     'redis://127.0.0.1:6379',
@@ -161,7 +176,11 @@ export async function runInit(): Promise<void> {
   const projectName = await requiredText('Name your first project', 'my-app');
   const projectPath = await requiredText(`Absolute path to "${projectName}"`, cwd);
 
-  fs.writeFileSync(envPath, renderEnv({ platforms, agents, slack, telegram, redisUrl }), 'utf8');
+  fs.writeFileSync(
+    envPath,
+    renderEnv({ platforms, agents, slack, telegram, discord, redisUrl }),
+    'utf8',
+  );
   fs.writeFileSync(
     projectsPath,
     `${JSON.stringify({ [projectName]: projectPath }, null, 2)}\n`,

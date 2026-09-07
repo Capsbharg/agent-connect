@@ -7,6 +7,7 @@ import type { AgentRegistry } from '../agentRegistry/AgentRegistry.js';
 import type { CommandRegistry } from '../commands/CommandRegistry.js';
 import type { ActiveExecutionRegistry } from '../execution/ActiveExecutionRegistry.js';
 import type { Logger } from '../logger/Logger.js';
+import type { ProjectRegistry } from '../project/ProjectRegistry.js';
 import type { ProjectSession } from '../project/ProjectSession.js';
 import type { ExecutionJobPayload, InboundMessage } from '../types.js';
 
@@ -16,6 +17,7 @@ export interface RouterOptions {
   authorization: AuthorizationProvider;
   commands: CommandRegistry;
   projectSession: ProjectSession;
+  projectRegistry: ProjectRegistry;
   agentRegistry: AgentRegistry;
   queue: QueueProvider<ExecutionJobPayload>;
   activeExecutions: ActiveExecutionRegistry;
@@ -46,6 +48,7 @@ export class Router {
       authorization,
       commands,
       projectSession,
+      projectRegistry,
       agentRegistry,
       queue,
       activeExecutions,
@@ -121,6 +124,11 @@ export class Router {
       }
     }
 
+    const agentName = await agentRegistry.getActiveAgentName(
+      identity.id,
+      projectRegistry.getAgentOverride(session.project),
+    );
+
     const payload: ExecutionJobPayload = {
       identityId: identity.id,
       platformUserId: identity.platformUserId,
@@ -130,7 +138,10 @@ export class Router {
       prompt: parsed.text,
       projectName: session.project,
       cwd: session.cwd,
-      agentName: await agentRegistry.getActiveAgentName(identity.id),
+      agentName,
+      model: projectRegistry.getModelOverride(session.project),
+      attachments: message.attachments,
+      sessionId: await projectSession.getSessionId(identity.id, agentName),
       requestedAt: Date.now(),
     };
 

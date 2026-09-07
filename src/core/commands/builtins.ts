@@ -39,10 +39,25 @@ export function registerBuiltinCommands(registry: CommandRegistry, deps: Builtin
 
   registry.register('current', 'show your active project', async (_arg, ctx) => {
     const session = await projectSession.get(ctx.identity.id);
-    const text = session
-      ? `Active project: *${session.project}*\ncwd: \`${session.cwd}\``
-      : 'No project selected. Use `use <project>` to pick one.';
-    await ctx.responder.post({ text });
+    if (!session) {
+      await ctx.responder.post({ text: 'No project selected. Use `use <project>` to pick one.' });
+      return;
+    }
+    // Reflects what will actually run, not just the user's own selection —
+    // a project's `agent`/`model` override in projects.json only applies
+    // when the user hasn't picked an agent themselves (see Router.ts), so
+    // this must resolve it the same way Router does.
+    const effectiveAgent = await agentRegistry.getActiveAgentName(
+      ctx.identity.id,
+      projectRegistry.getAgentOverride(session.project),
+    );
+    const effectiveModel = projectRegistry.getModelOverride(session.project);
+    const lines = [
+      `Active project: *${session.project}*`,
+      `cwd: \`${session.cwd}\``,
+      `Agent: *${effectiveAgent}*${effectiveModel ? ` (model: *${effectiveModel}*)` : ''}`,
+    ];
+    await ctx.responder.post({ text: lines.join('\n') });
   });
 
   registry.register(
@@ -87,7 +102,14 @@ export function registerBuiltinCommands(registry: CommandRegistry, deps: Builtin
     async (arg, ctx) => {
       const name = arg.trim();
       if (!name) {
-        const active = await agentRegistry.getActiveAgentName(ctx.identity.id);
+        // Same resolution Router.ts uses when actually enqueueing a prompt —
+        // otherwise this can report an agent that isn't the one that runs
+        // (see the `current` command for the same fix).
+        const session = await projectSession.get(ctx.identity.id);
+        const projectAgent = session
+          ? projectRegistry.getAgentOverride(session.project)
+          : undefined;
+        const active = await agentRegistry.getActiveAgentName(ctx.identity.id, projectAgent);
         await ctx.responder.post({
           text: `Active agent: *${active}*. Usage: \`agent <name>\`. Run \`agents\` to see available options.`,
         });

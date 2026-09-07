@@ -56,11 +56,21 @@ export class CursorAgent implements AgentAdapter {
     let answer = '';
     let finalResult: { success: boolean; outputText: string } | null = null;
 
+    // request.sessionId / result.sessionId are intentionally not wired up
+    // here: Cursor's docs mention a `--resume="chat-id"` flag, but unlike
+    // Claude's/Codex's session ids (verified against real CLI output — see
+    // ClaudeAgent.ts/CodexAgent.ts), this hasn't been confirmed against a
+    // real cursor-agent install, so it isn't safe to build a continuation
+    // feature on top of it yet. Verify it, then wire it the same way.
     const args = ['-p', '--output-format', 'stream-json'];
     // Runs headless (no human to answer the CLI's own per-action confirmation
     // prompts) — see the same note on ClaudeAgent's --dangerously-skip-permissions.
     // Set CURSOR_FORCE=false to require the CLI's own confirmation instead.
     if (this.config.force !== false) args.push('--force');
+    // Per Cursor's public docs (--model "gpt-5"); Cursor's CLI is less
+    // consistently documented than Claude's, so verify against your
+    // installed cursor-agent version if a model name is rejected.
+    if (request.model) args.push('--model', request.model);
     args.push(request.prompt);
 
     const handle = runCliProcess(

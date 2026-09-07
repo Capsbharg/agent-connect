@@ -48,6 +48,8 @@ export { SlackAdapter } from './messaging/slack/SlackAdapter.js';
 export type { SlackAdapterOptions } from './messaging/slack/SlackAdapter.js';
 export { TelegramAdapter } from './messaging/telegram/TelegramAdapter.js';
 export type { TelegramAdapterOptions } from './messaging/telegram/TelegramAdapter.js';
+export { DiscordAdapter } from './messaging/discord/DiscordAdapter.js';
+export type { DiscordAdapterOptions } from './messaging/discord/DiscordAdapter.js';
 
 // --- Agents -------------------------------------------------------------
 export { ClaudeAgent } from './agents/claude/ClaudeAgent.js';
@@ -77,6 +79,7 @@ export type {
   AdminConfig,
   SlackConfig,
   TelegramConfig,
+  DiscordConfig,
   ClaudeConfig,
   CursorConfig,
   CodexConfig,
@@ -95,6 +98,7 @@ export {
 
 // --- Advanced/testing building blocks (used when assembling a custom app) --
 export { ProjectRegistry } from './core/project/ProjectRegistry.js';
+export type { ProjectEntry } from './core/project/ProjectRegistry.js';
 export { ProjectSession } from './core/project/ProjectSession.js';
 export { AgentRegistry } from './core/agentRegistry/AgentRegistry.js';
 export { CommandRegistry } from './core/commands/CommandRegistry.js';

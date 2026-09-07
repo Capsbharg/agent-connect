@@ -44,7 +44,17 @@ export class GeminiAgent implements AgentAdapter {
     let answer = '';
     let finalResult: { success: boolean; outputText: string; errorMessage?: string } | null = null;
 
+    // request.sessionId / result.sessionId are intentionally not wired up
+    // here: Gemini's stream-json `init` event does carry a `session_id`
+    // (confirmed from source), but its `-r, --resume` flag is documented as
+    // index/"latest"-based ("--resume 5", "--resume latest"), not a
+    // resume-by-opaque-id flag — whether it also accepts that raw session_id
+    // string isn't verified, and index-based resume doesn't reliably map to
+    // "continue this specific identity+project's conversation" when the
+    // CLI's local session history could contain other runs too. Verify a raw
+    // session_id works with --resume before wiring this the way Claude/Codex are.
     const args = ['-p', request.prompt, '--output-format', 'stream-json'];
+    if (request.model) args.push('--model', request.model);
     // Runs headless (no human to answer the CLI's own per-action confirmation
     // prompts) — see the same note on ClaudeAgent's --dangerously-skip-permissions.
     // Set GEMINI_YOLO=false to require the CLI's own confirmation instead.

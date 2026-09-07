@@ -21,7 +21,7 @@ flowchart LR
     K --> B
 ```
 
-1. A `MessagingAdapter` (Slack, Telegram, ...) turns a platform-native event into an `InboundMessage` and calls the handler the `Router` registered.
+1. A `MessagingAdapter` (Slack, Telegram, Discord, ...) turns a platform-native event into an `InboundMessage` and calls the handler the `Router` registered.
 2. `Router` emits `beforeMessage`, resolves an `Identity` via `AuthenticationProvider`, checks `AuthorizationProvider`, then either routes to a `CommandRegistry` entry (`help`, `projects`, `use`, `current`, `agents`, `agent`, `status`, `cancel`, `health`, `clear`, plus anything a plugin registered) or — for a free-form prompt — requires an active project (`ProjectSession`), enforces `MAX_QUEUED_PER_IDENTITY` against that identity's running+queued executions, builds an `ExecutionJobPayload`, and enqueues it via `QueueProvider`.
 3. `ExecutionManager` is the queue's processor (the "Agent Manager" in the spec): per-identity serialized (`PerIdentityMutex`), it resolves the user's active `AgentAdapter` via `AgentRegistry`, creates a fresh `StreamingResponder` for the conversation, runs the agent, and streams progress into that responder — emitting `beforeExecution`/`afterExecution`/`beforeReply`/`afterReply` along the way.
 4. The `StreamingResponder` (created by the same `MessagingAdapter` that received the message) hides "Slack edits a thread message" vs "Telegram edits a chat message" behind `post()` / `update()` / `complete()`.
@@ -30,7 +30,7 @@ flowchart LR
 
 | Interface                | Job                                                                                          | Built-in implementations                                           |
 | ------------------------ | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `MessagingAdapter`       | Receive messages, create a `StreamingResponder`                                              | `SlackAdapter`, `TelegramAdapter`                                  |
+| `MessagingAdapter`       | Receive messages, create a `StreamingResponder`                                              | `SlackAdapter`, `TelegramAdapter`, `DiscordAdapter`                |
 | `AgentAdapter`           | Execute a prompt, stream progress, support cancel/health-check                               | `ClaudeAgent`, `CursorAgent`, `CodexAgent`, `GeminiAgent`          |
 | `QueueProvider`          | Enqueue/process/cancel executions                                                            | `BullMQQueueProvider` (Redis), `InMemoryQueueProvider` (dev/tests) |
 | `StorageProvider`        | JSON key-value store for sessions                                                            | `RedisStorageProvider`, `InMemoryStorageProvider`                  |
@@ -60,6 +60,7 @@ core/
 interfaces/           the seven contracts (barrel export)
 messaging/slack/      SlackAdapter, SlackApp (Bolt factory), SlackThreadStream
 messaging/telegram/   TelegramAdapter, TelegramMessageStream
+messaging/discord/    DiscordAdapter, DiscordMessageStream
 agents/shared/        CliProcessRunner (spawn/stream/timeout/cancel for any CLI agent), ndjson parsing
 agents/claude/        ClaudeAgent + ClaudeStreamParser
 agents/cursor/        CursorAgent + CursorStreamParser
@@ -74,7 +75,7 @@ Adding a new messaging platform or agent means implementing exactly one interfac
 
 | Category  | Planned, not implemented                                                                                                    |
 | --------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Messaging | WhatsApp, Discord, Microsoft Teams, Signal, Email, GitHub Issues, GitLab Issues, Web Chat                                   |
+| Messaging | WhatsApp, Microsoft Teams, Signal, Email, GitHub Issues, GitLab Issues, Web Chat                                            |
 | Agents    | OpenHands, Amazon Q, CodeRabbit, custom agents                                                                              |
 | Plugins   | GitHub, GitLab, Jira (see [plugin-guide.md](./plugin-guide.md) — `AuditLogPlugin` is the one real reference implementation) |
 
@@ -88,5 +89,8 @@ Adding a new messaging platform or agent means implementing exactly one interfac
 - `MAX_QUEUED_PER_IDENTITY` bounds how many executions (running + queued) a single identity may have outstanding, enforced in `Router` before a prompt is enqueued.
 - `RedisStorageProvider`/`BullMQQueueProvider` accept a `REDIS_KEY_PREFIX` to namespace their keys when Redis is shared with other apps.
 - The optional queue dashboard binds to `127.0.0.1` only and has no authentication of its own.
+- File attachments (Telegram/Discord) are downloaded into `<project cwd>/.agent-connect-attachments/<jobId>/` with a 25 MB per-file cap (checked against `content-length` before the body is read, and again against the actual bytes), filenames stripped of `/`/`\` so a hostile name can't escape the destination directory, and the job's subdirectory deleted once execution finishes — a failed download is skipped with a warning rather than failing the whole prompt.
+- Multi-turn session continuation (`ClaudeAgent`'s `--resume`, `CodexAgent`'s `exec resume`) is only wired up where the CLI's resume semantics were verified against a real install to take a raw session id. `CursorAgent`/`GeminiAgent` leave it unwired — Cursor's `--resume` is unverified and Gemini's `--resume`/`-r` is index/"latest"-based, not a session id, so building continuity on either without further verification would be guesswork.
 - `beforeExecution`/`afterExecution` events plus the `AuditLogPlugin` give you a structured audit trail.
 - Every `AgentAdapter.healthCheck()` runs automatically (non-blocking) on `AgentConnect.start()`, is reused by `agent-connect doctor`, and is exposed as the `health` chat command — the same health signal everywhere.
+- `DiscordAdapter` requires an explicit @mention in guild channels (Discord has no separate "mention" event like Slack's `app_mention` — every message the bot can see arrives on the same event, so the adapter itself enforces the gate) and always responds to DMs.

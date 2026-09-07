@@ -8,7 +8,7 @@ Thanks for considering a contribution! This project is small and the architectur
 
 In practice this means:
 
-- **Adding a messaging platform** (Discord, WhatsApp, ...) → implement `MessagingAdapter` under `src/messaging/<platform>/`, following the shape of `SlackAdapter`/`TelegramAdapter`. You should not need to touch `core/`.
+- **Adding a messaging platform** (WhatsApp, Microsoft Teams, ...) → implement `MessagingAdapter` under `src/messaging/<platform>/`, following the shape of `SlackAdapter`/`TelegramAdapter`/`DiscordAdapter`. You should not need to touch `core/`.
 - **Adding an agent CLI** (Amazon Q, OpenHands, ...) → implement `AgentAdapter` under `src/agents/<agent>/`, following `ClaudeAgent`/`CursorAgent`/`CodexAgent`/`GeminiAgent`. `src/agents/shared/CliProcessRunner.ts` already handles spawn/stream/timeout/cancel for any CLI-based agent.
 - **Adding a plugin** (GitHub, Jira, ...) → implement `Plugin` (`register(ctx)`), following `AuditLogPlugin`. See [docs/plugin-guide.md](docs/plugin-guide.md).
 

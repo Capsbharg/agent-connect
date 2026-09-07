@@ -71,6 +71,22 @@ describe('translateClaudeEvent', () => {
     expect(result.final?.success).toBe(false);
   });
 
+  it('extracts session_id from the result event, for continuing the conversation later', () => {
+    const result = translateClaudeEvent({
+      type: 'result',
+      subtype: 'success',
+      is_error: false,
+      result: 'done',
+      session_id: 'bb21df7b-68d5-461a-8ac5-765e379fad94',
+    });
+    expect(result.final?.sessionId).toBe('bb21df7b-68d5-461a-8ac5-765e379fad94');
+  });
+
+  it('leaves sessionId undefined when the result event has none', () => {
+    const result = translateClaudeEvent({ type: 'result', subtype: 'success', result: 'done' });
+    expect(result.final?.sessionId).toBeUndefined();
+  });
+
   it('returns nothing for malformed input', () => {
     expect(translateClaudeEvent(null)).toEqual({});
     expect(translateClaudeEvent('not an object')).toEqual({});

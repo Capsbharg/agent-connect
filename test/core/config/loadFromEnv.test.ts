@@ -16,6 +16,7 @@ describe('loadFromEnv', () => {
     expect(config.redisKeyPrefix).toBeUndefined();
     expect(config.slack).toBeUndefined();
     expect(config.telegram).toBeUndefined();
+    expect(config.discord).toBeUndefined();
     // Claude is enabled by default and defaults to the (documented, security-relevant) headless flags.
     expect(config.claude).toEqual({
       cliPath: 'claude',
@@ -109,5 +110,27 @@ describe('loadFromEnv', () => {
   it('Gemini stays disabled by default even though it is not gated the same way Claude is', () => {
     expect(loadFromEnv({}).gemini).toBeUndefined();
     expect(loadFromEnv({ GEMINI_CLI_PATH: '/custom/gemini' }).gemini).toBeUndefined();
+  });
+
+  it('resolves a Discord block when DISCORD_BOT_TOKEN is set', () => {
+    const config = loadFromEnv({ DISCORD_BOT_TOKEN: 'discord-token' });
+    expect(config.discord).toEqual({
+      botToken: 'discord-token',
+      editThrottleMs: 1500,
+      progressMaxLines: 12,
+    });
+  });
+
+  it('Discord throttle/progress-lines env vars override their defaults', () => {
+    const config = loadFromEnv({
+      DISCORD_BOT_TOKEN: 'discord-token',
+      DISCORD_EDIT_THROTTLE_MS: '2000',
+      DISCORD_PROGRESS_MAX_LINES: '5',
+    });
+    expect(config.discord).toEqual({
+      botToken: 'discord-token',
+      editThrottleMs: 2000,
+      progressMaxLines: 5,
+    });
   });
 });

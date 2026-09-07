@@ -1,6 +1,8 @@
 export interface CodexTranslated {
   progressLines?: string[];
   answerDelta?: string;
+  /** From `thread.started`'s `thread_id` — verified against a real `codex exec --json` run. Pass back to `codex exec resume <id>` to continue this conversation. */
+  sessionId?: string;
   final?: {
     success: boolean;
     outputText: string;
@@ -25,7 +27,12 @@ export function translateCodexEvent(json: unknown): CodexTranslated {
   const event = json as Record<string, unknown>;
   const type = String(event.type ?? '');
 
-  if (type === 'thread.started' || type === 'turn.started') {
+  if (type === 'thread.started') {
+    const threadId = event.thread_id;
+    return typeof threadId === 'string' ? { sessionId: threadId } : {};
+  }
+
+  if (type === 'turn.started') {
     return {};
   }
 

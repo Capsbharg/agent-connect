@@ -64,8 +64,10 @@ export interface AgentExecutionRequest {
   cwd: string;
   env?: Record<string, string>;
   timeoutMs?: number;
-  /** Opaque per-agent conversation/session id, for agents that support resuming context. */
+  /** Opaque per-agent conversation/session id, for agents that support resuming context. Currently wired for ClaudeAgent/CodexAgent only — see the comments in CursorAgent.ts/GeminiAgent.ts for why those two don't use it yet. */
   sessionId?: string;
+  /** Overrides the agent's default model for this run (e.g. a project's configured `model`), passed as `--model`/`-m`. Unsupported values are rejected by the CLI itself. */
+  model?: string;
   onProgress?: (chunk: AgentProgressChunk) => void;
 }
 
@@ -94,6 +96,8 @@ export interface ProjectSessionState {
   project: string;
   cwd: string;
   lastActivity: number;
+  /** The last conversation/session id an agent reported for this identity+project, keyed by agent name — lets the next prompt continue that conversation instead of starting fresh. Reset whenever `use <project>` runs again (even re-selecting the same project), which is the intentional "start a new conversation" mechanism. */
+  sessionIdsByAgent?: Record<string, string>;
 }
 
 export interface ExecutionJobPayload {
@@ -106,6 +110,11 @@ export interface ExecutionJobPayload {
   projectName: string;
   cwd: string;
   agentName: string;
+  /** From the active project's `model` override in projects.json, if set. */
+  model?: string;
+  attachments?: InboundAttachment[];
+  /** The stored session id to continue, if this identity+project+agent has a prior conversation — see ProjectSessionState.sessionIdsByAgent. */
+  sessionId?: string;
   requestedAt: number;
 }
 

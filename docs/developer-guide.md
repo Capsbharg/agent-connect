@@ -13,7 +13,7 @@ await app.start();
 
 Reads `.env` (see `.env.example` at the repo root, or generate one with `npx @capsbharg/agent-connect init`) and auto-configures:
 
-- **Messaging**: `SlackAdapter` if `SLACK_BOT_TOKEN`+`SLACK_SIGNING_SECRET`+`SLACK_APP_TOKEN` are set; `TelegramAdapter` if `TELEGRAM_BOT_TOKEN` is set. At least one is required.
+- **Messaging**: `SlackAdapter` if `SLACK_BOT_TOKEN`+`SLACK_SIGNING_SECRET`+`SLACK_APP_TOKEN` are set; `TelegramAdapter` if `TELEGRAM_BOT_TOKEN` is set; `DiscordAdapter` if `DISCORD_BOT_TOKEN` is set. At least one is required.
 - **Agents**: `ClaudeAgent` (on by default), `CursorAgent`/`CodexAgent`/`GeminiAgent` if `CURSOR_ENABLED=true`/`CODEX_ENABLED=true`/`GEMINI_ENABLED=true`. At least one is required.
 - **Storage/queue**: `RedisStorageProvider` + `BullMQQueueProvider` if `REDIS_URL` is set; otherwise `InMemoryStorageProvider` + `InMemoryQueueProvider` (single-process, dev only — a warning is logged).
 - **Security**: `AllowListAuthorizationProvider` from `ALLOWED_USERS`/`ALLOWED_CHANNELS`/`ALLOWED_GROUPS`.
@@ -28,6 +28,7 @@ import {
   AgentConnect,
   SlackAdapter,
   TelegramAdapter,
+  DiscordAdapter,
   ClaudeAgent,
   CursorAgent,
   CodexAgent,
@@ -35,7 +36,7 @@ import {
 } from '@capsbharg/agent-connect';
 
 const app = new AgentConnect({
-  messaging: [new SlackAdapter(), new TelegramAdapter()],
+  messaging: [new SlackAdapter(), new TelegramAdapter(), new DiscordAdapter()],
   agents: [new ClaudeAgent(), new CursorAgent(), new CodexAgent(), new GeminiAgent()],
 });
 
@@ -57,16 +58,17 @@ Passing `authorization` yourself takes over the empty-allowlist startup warning 
 
 ## Projects
 
-Claude/Cursor/Codex only ever run inside a project directory you've explicitly registered — never an arbitrary path. Map project names to absolute local paths in `projects.json` (gitignored; copy `projects.example.json`):
+Claude/Cursor/Codex/Gemini only ever run inside a project directory you've explicitly registered — never an arbitrary path. Map project names to absolute local paths in `projects.json` (gitignored; copy `projects.example.json`):
 
 ```json
 {
   "backend-api": "/path/to/your/backend-api",
-  "frontend-web": "/path/to/your/frontend-web"
+  "frontend-web": "/path/to/your/frontend-web",
+  "mobile-app": { "path": "/path/to/your/mobile-app", "agent": "cursor", "model": "gpt-5" }
 }
 ```
 
-A user runs `use <project>` to select one; the name is matched **exactly** against a key in this file.
+A user runs `use <project>` to select one; the name is matched **exactly** against a key in this file. An entry can be a plain path string, or an object adding `agent`/`model` defaults for that project (`ProjectRegistry.getAgentOverride()`/`getModelOverride()`) — `agent` only applies when the user hasn't run their own `agent <name>` (see `AgentRegistry.getActiveAgentName(identityId, fallback)`), and `model` is passed to whichever agent runs as `--model`/`-m`.
 
 ## Commands
 

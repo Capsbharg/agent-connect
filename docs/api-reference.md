@@ -38,8 +38,9 @@ class AgentConnect {
 
 - `new SlackAdapter(options?: { config?: SlackConfig; logger?: Logger })`
 - `new TelegramAdapter(options?: { config?: TelegramConfig; logger?: Logger })`
+- `new DiscordAdapter(options?: { config?: DiscordConfig; logger?: Logger })`
 
-Both implement `MessagingAdapter` and resolve their config from environment variables when `config` is omitted.
+All three implement `MessagingAdapter` and resolve their config from environment variables when `config` is omitted.
 
 ## Agents
 
@@ -66,7 +67,7 @@ See [architecture.md](./architecture.md#the-seven-interfaces-srcinterfaces) for 
 
 ## Config & logging
 
-`loadFromEnv(env?): ResolvedConfig`, `createLogger(options?): Logger`, plus the `ResolvedConfig` sub-types (`SecurityConfig`, `AdminConfig`, `SlackConfig`, `TelegramConfig`, `ClaudeConfig`, `CursorConfig`, `CodexConfig`, `GeminiConfig`).
+`loadFromEnv(env?): ResolvedConfig`, `createLogger(options?): Logger`, plus the `ResolvedConfig` sub-types (`SecurityConfig`, `AdminConfig`, `SlackConfig`, `TelegramConfig`, `DiscordConfig`, `ClaudeConfig`, `CursorConfig`, `CodexConfig`, `GeminiConfig`).
 
 ## Errors
 
@@ -78,4 +79,6 @@ See [architecture.md](./architecture.md#the-seven-interfaces-srcinterfaces) for 
 
 ## Advanced building blocks
 
-Exposed for building a custom app or testing: `ProjectRegistry`, `ProjectSession`, `AgentRegistry`, `CommandRegistry`, `registerBuiltinCommands`, `Router`, `ExecutionManager`, `ActiveExecutionRegistry`, `QueueDashboard`.
+Exposed for building a custom app or testing: `ProjectRegistry` (+ its `ProjectEntry` type — `{ path, agent?, model? }`), `ProjectSession`, `AgentRegistry`, `CommandRegistry`, `registerBuiltinCommands`, `Router`, `ExecutionManager`, `ActiveExecutionRegistry`, `QueueDashboard`.
+
+`ProjectSession` also tracks per-agent conversation continuity: `getSessionId(identityId, agentName)` / `setSessionId(identityId, agentName, sessionId)` read/write `ProjectSessionState.sessionIdsByAgent`, keyed by the agent that actually ran (not the identity's raw agent selection). `setActiveProject()` always starts from a fresh state, so re-selecting a project (even the one already active) clears every stored session id for that identity — the supported way to force a new conversation. `ExecutionJobPayload` carries `attachments?: InboundAttachment[]` and `sessionId?: string` through the queue so a worker process has what it needs to download files and resume a conversation without touching `ProjectSession` itself.

@@ -84,4 +84,39 @@ describe('AgentRegistry', () => {
     const registryV2 = new AgentRegistry([fakeAgent('claude')], 'claude', storage);
     expect(await registryV2.getActiveAgentName('U1')).toBe('claude');
   });
+
+  describe('getActiveAgentName() fallback (project agent override)', () => {
+    it('uses the fallback when the identity has no explicit selection', async () => {
+      const storage = new InMemoryStorageProvider();
+      const registry = new AgentRegistry(
+        [fakeAgent('claude'), fakeAgent('cursor')],
+        'claude',
+        storage,
+      );
+      expect(await registry.getActiveAgentName('U1', 'cursor')).toBe('cursor');
+    });
+
+    it("the identity's own explicit selection still wins over the fallback", async () => {
+      const storage = new InMemoryStorageProvider();
+      const registry = new AgentRegistry(
+        [fakeAgent('claude'), fakeAgent('cursor')],
+        'claude',
+        storage,
+      );
+      await registry.setActiveAgent('U1', 'claude');
+      expect(await registry.getActiveAgentName('U1', 'cursor')).toBe('claude');
+    });
+
+    it('an unregistered fallback name is ignored, falling through to the app default', async () => {
+      const storage = new InMemoryStorageProvider();
+      const registry = new AgentRegistry([fakeAgent('claude')], 'claude', storage);
+      expect(await registry.getActiveAgentName('U1', 'not-a-real-agent')).toBe('claude');
+    });
+
+    it('omitting the fallback behaves exactly as before', async () => {
+      const storage = new InMemoryStorageProvider();
+      const registry = new AgentRegistry([fakeAgent('claude')], 'claude', storage);
+      expect(await registry.getActiveAgentName('U1')).toBe('claude');
+    });
+  });
 });

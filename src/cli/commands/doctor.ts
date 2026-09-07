@@ -80,12 +80,38 @@ async function checkTelegram(botToken: string): Promise<CheckResult> {
   }
 }
 
+/** Uses Discord's REST API directly (not discord.js) so checking a token never opens a real gateway connection. */
+async function checkDiscord(botToken: string): Promise<CheckResult> {
+  try {
+    const response = await fetch('https://discord.com/api/v10/users/@me', {
+      headers: { Authorization: `Bot ${botToken}` },
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { message?: string } | null;
+      return {
+        label: 'Discord token',
+        ok: false,
+        detail: body?.message ?? `HTTP ${response.status}`,
+      };
+    }
+    const body = (await response.json()) as { username?: string };
+    return { label: 'Discord token', ok: true, detail: `authenticated as ${body.username}` };
+  } catch (error) {
+    return {
+      label: 'Discord token',
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 /** `agent-connect doctor`: checks agent CLIs on PATH, Redis connectivity, and platform tokens — all read from the current environment (.env is loaded before this runs). */
 export async function runDoctor(): Promise<void> {
   const checks: Promise<CheckResult>[] = [];
 
   if (process.env.SLACK_BOT_TOKEN) checks.push(checkSlack(process.env.SLACK_BOT_TOKEN));
   if (process.env.TELEGRAM_BOT_TOKEN) checks.push(checkTelegram(process.env.TELEGRAM_BOT_TOKEN));
+  if (process.env.DISCORD_BOT_TOKEN) checks.push(checkDiscord(process.env.DISCORD_BOT_TOKEN));
   if (process.env.REDIS_URL) checks.push(checkRedis(process.env.REDIS_URL));
 
   // Built directly from process.env (not loadFromEnv()) so an unrelated

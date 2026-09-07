@@ -102,6 +102,14 @@ describe('AgentConnect.fromEnv()', () => {
     });
     expect(app).toBeInstanceOf(AgentConnect);
   });
+
+  it('builds successfully with only Discord configured as the messaging platform', () => {
+    const app = AgentConnect.fromEnv({
+      DISCORD_BOT_TOKEN: 'discord-token',
+      ADMIN_ENABLED: 'false',
+    });
+    expect(app).toBeInstanceOf(AgentConnect);
+  });
 });
 
 describe('AgentConnect.start() security warning', () => {

@@ -42,9 +42,15 @@ export class ClaudeAgent implements AgentAdapter {
 
   execute(request: AgentExecutionRequest): AgentExecutionHandle {
     let answer = '';
-    let finalResult: { success: boolean; outputText: string } | null = null;
+    let finalResult: { success: boolean; outputText: string; sessionId?: string } | null = null;
 
     const args = ['-p', request.prompt, '--output-format', 'stream-json', '--verbose'];
+    if (request.model) args.push('--model', request.model);
+    // Continues a prior conversation by its session id (verified: `claude
+    // --output-format stream-json` reports `session_id` on its `result`
+    // event — see ClaudeStreamParser.ts). Omitted entirely for a fresh
+    // conversation, matching --resume's own semantics.
+    if (request.sessionId) args.push('--resume', request.sessionId);
     // Runs headless (no human to answer the CLI's own per-action confirmation
     // prompts) — this means an authorized user can direct arbitrary file
     // writes/shell commands inside the active project. Set
@@ -81,6 +87,7 @@ export class ClaudeAgent implements AgentAdapter {
       cancelled: runResult.cancelled,
       timedOut: runResult.timedOut,
       errorMessage: runResult.errorMessage,
+      sessionId: finalResult?.sessionId,
     }));
 
     return { cancel: handle.cancel, result };

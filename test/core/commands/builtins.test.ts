@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { registerBuiltinCommands } from '../../../src/core/commands/builtins.js';
 import { CommandRegistry } from '../../../src/core/commands/CommandRegistry.js';
@@ -16,6 +19,16 @@ import type {
   ReplyContent,
 } from '../../../src/core/types.js';
 import { createTestLogger } from '../../helpers/testLogger.js';
+
+/** Writes a projects.json with the given raw entries and returns a loaded ProjectRegistry. */
+function loadedProjectRegistry(entries: Record<string, unknown>): ProjectRegistry {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-connect-builtins-test-'));
+  const configPath = path.join(dir, 'projects.json');
+  fs.writeFileSync(configPath, JSON.stringify(entries));
+  const registry = new ProjectRegistry(configPath, createTestLogger());
+  registry.load();
+  return registry;
+}
 
 function fakeAgent(name: string, healthy = true): AgentAdapter {
   return {
@@ -36,9 +49,13 @@ function fakeAgent(name: string, healthy = true): AgentAdapter {
   };
 }
 
-function setup(agents: AgentAdapter[] = [fakeAgent('claude')]) {
+function setup(
+  agents: AgentAdapter[] = [fakeAgent('claude')],
+  opts: { projectRegistry?: ProjectRegistry } = {},
+) {
   const storage = new InMemoryStorageProvider();
-  const projectRegistry = new ProjectRegistry('/does/not/matter.json', createTestLogger());
+  const projectRegistry =
+    opts.projectRegistry ?? new ProjectRegistry('/does/not/matter.json', createTestLogger());
   const projectSession = new ProjectSession(storage);
   const agentRegistry = new AgentRegistry(agents, agents[0]!.name, storage);
   const queue = new InMemoryQueueProvider<ExecutionJobPayload>();
@@ -71,7 +88,7 @@ function setup(agents: AgentAdapter[] = [fakeAgent('claude')]) {
   };
   const ctx: CommandContext = { identity, message, responder };
 
-  return { registry, queue, activeExecutions, ctx, responder };
+  return { registry, queue, activeExecutions, projectSession, ctx, responder };
 }
 
 function basePayload(overrides: Partial<ExecutionJobPayload> = {}): ExecutionJobPayload {
@@ -199,5 +216,70 @@ describe('builtins: health', () => {
 
     const text = responder.post.mock.calls.at(-1)![0]!.text;
     expect(text).toContain('❌ flaky — spawn ENOENT');
+  });
+});
+
+describe('builtins: current/agent reflect the project agent/model override', () => {
+  it('`agent` with no arg shows the project override, not the app default, when the user never picked one', async () => {
+    const projectRegistry = loadedProjectRegistry({ demo: { path: os.tmpdir(), agent: 'cursor' } });
+    const { registry, projectSession, ctx, responder } = setup(
+      [fakeAgent('claude'), fakeAgent('cursor')],
+      { projectRegistry },
+    );
+    await projectSession.setActiveProject('test:U1', 'demo', os.tmpdir());
+
+    await registry.execute('agent', '', ctx);
+
+    expect(responder.post).toHaveBeenCalledWith(
+      expect.objectContaining({ text: expect.stringContaining('Active agent: *cursor*') }),
+    );
+  });
+
+  it("`agent` with no arg still shows the user's own explicit pick over the project override", async () => {
+    const projectRegistry = loadedProjectRegistry({ demo: { path: os.tmpdir(), agent: 'cursor' } });
+    const { registry, projectSession, ctx, responder } = setup(
+      [fakeAgent('claude'), fakeAgent('cursor')],
+      { projectRegistry },
+    );
+    await projectSession.setActiveProject('test:U1', 'demo', os.tmpdir());
+    await registry.execute('agent', 'claude', ctx);
+    responder.post.mockClear();
+
+    await registry.execute('agent', '', ctx);
+
+    expect(responder.post).toHaveBeenCalledWith(
+      expect.objectContaining({ text: expect.stringContaining('Active agent: *claude*') }),
+    );
+  });
+
+  it('`current` shows the effective agent and model for the active project', async () => {
+    const projectRegistry = loadedProjectRegistry({
+      demo: { path: os.tmpdir(), agent: 'cursor', model: 'gpt-5' },
+    });
+    const { registry, projectSession, ctx, responder } = setup(
+      [fakeAgent('claude'), fakeAgent('cursor')],
+      { projectRegistry },
+    );
+    await projectSession.setActiveProject('test:U1', 'demo', os.tmpdir());
+
+    await registry.execute('current', '', ctx);
+
+    const text = responder.post.mock.calls.at(-1)![0]!.text;
+    expect(text).toContain('Agent: *cursor*');
+    expect(text).toContain('model: *gpt-5*');
+  });
+
+  it('`current` omits the model note when the project has no model override', async () => {
+    const projectRegistry = loadedProjectRegistry({ demo: os.tmpdir() });
+    const { registry, projectSession, ctx, responder } = setup([fakeAgent('claude')], {
+      projectRegistry,
+    });
+    await projectSession.setActiveProject('test:U1', 'demo', os.tmpdir());
+
+    await registry.execute('current', '', ctx);
+
+    const text = responder.post.mock.calls.at(-1)![0]!.text;
+    expect(text).toContain('Agent: *claude*');
+    expect(text).not.toContain('model:');
   });
 });

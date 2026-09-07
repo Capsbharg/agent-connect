@@ -1,9 +1,13 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { AgentRegistry } from '../../../src/core/agentRegistry/AgentRegistry.js';
 import { CommandRegistry } from '../../../src/core/commands/CommandRegistry.js';
 import { EventBus } from '../../../src/core/events/EventBus.js';
 import { ActiveExecutionRegistry } from '../../../src/core/execution/ActiveExecutionRegistry.js';
 import { InMemoryQueueProvider } from '../../../src/core/queue/InMemoryQueueProvider.js';
+import { ProjectRegistry } from '../../../src/core/project/ProjectRegistry.js';
 import { ProjectSession } from '../../../src/core/project/ProjectSession.js';
 import { Router } from '../../../src/core/router/Router.js';
 import { InMemoryStorageProvider } from '../../../src/core/storage/InMemoryStorageProvider.js';
@@ -14,32 +18,50 @@ import type { MessagingAdapter } from '../../../src/interfaces/MessagingAdapter.
 import type { ExecutionJobPayload, Identity, InboundMessage } from '../../../src/core/types.js';
 import { createTestLogger } from '../../helpers/testLogger.js';
 
-const fakeAgent: AgentAdapter = {
-  name: 'claude',
-  healthCheck: async () => ({ healthy: true }),
-  execute: () => ({
-    cancel: () => {},
-    result: Promise.resolve({
-      success: true,
-      outputText: '',
-      durationMs: 0,
-      exitCode: 0,
-      cancelled: false,
-      timedOut: false,
+function fakeAgent(name: string): AgentAdapter {
+  return {
+    name,
+    healthCheck: async () => ({ healthy: true }),
+    execute: () => ({
+      cancel: () => {},
+      result: Promise.resolve({
+        success: true,
+        outputText: '',
+        durationMs: 0,
+        exitCode: 0,
+        cancelled: false,
+        timedOut: false,
+      }),
     }),
-  }),
-};
+  };
+}
+
+/** An empty, never-loaded ProjectRegistry — every lookup returns undefined, matching pre-override behavior. */
+function emptyProjectRegistry(): ProjectRegistry {
+  return new ProjectRegistry(
+    path.join(os.tmpdir(), 'agent-connect-router-test-nonexistent.json'),
+    createTestLogger(),
+  );
+}
 
 function baseMessage(text: string): InboundMessage {
   return { platform: 'test', platformUserId: 'U1', channelId: 'C1', isDirect: true, text, raw: {} };
 }
 
 function setup(
-  opts: { authFails?: boolean; authorized?: boolean; maxQueuedPerIdentity?: number } = {},
+  opts: {
+    authFails?: boolean;
+    authorized?: boolean;
+    maxQueuedPerIdentity?: number;
+    projectRegistry?: ProjectRegistry;
+    agentNames?: string[];
+  } = {},
 ) {
   const storage = new InMemoryStorageProvider();
   const projectSession = new ProjectSession(storage);
-  const agentRegistry = new AgentRegistry([fakeAgent], 'claude', storage);
+  const agentNames = opts.agentNames ?? ['claude'];
+  const agentRegistry = new AgentRegistry(agentNames.map(fakeAgent), agentNames[0]!, storage);
+  const projectRegistry = opts.projectRegistry ?? emptyProjectRegistry();
   const queue = new InMemoryQueueProvider<ExecutionJobPayload>();
   const activeExecutions = new ActiveExecutionRegistry();
   const events = new EventBus(createTestLogger());
@@ -79,6 +101,7 @@ function setup(
     authorization,
     commands,
     projectSession,
+    projectRegistry,
     agentRegistry,
     queue,
     activeExecutions,
@@ -93,9 +116,20 @@ function setup(
     responder,
     queue,
     projectSession,
+    agentRegistry,
     activeExecutions,
     emit: (message: InboundMessage) => handler?.(message),
   };
+}
+
+/** Writes a projects.json with the given raw entries and returns a loaded ProjectRegistry. */
+function loadedProjectRegistry(entries: Record<string, unknown>): ProjectRegistry {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-connect-router-test-'));
+  const configPath = path.join(dir, 'projects.json');
+  fs.writeFileSync(configPath, JSON.stringify(entries));
+  const registry = new ProjectRegistry(configPath, createTestLogger());
+  registry.load();
+  return registry;
 }
 
 describe('Router', () => {
@@ -179,5 +213,107 @@ describe('Router', () => {
     await emit(baseMessage('third'));
 
     expect(await queue.listPending()).toHaveLength(3);
+  });
+
+  describe('per-project agent/model overrides', () => {
+    it("uses the project's agent override when the user has never explicitly picked one", async () => {
+      const projectRegistry = loadedProjectRegistry({
+        demo: { path: os.tmpdir(), agent: 'cursor' },
+      });
+      const { emit, queue, projectSession } = setup({
+        agentNames: ['claude', 'cursor'],
+        projectRegistry,
+      });
+      await projectSession.setActiveProject('test:U1', 'demo', os.tmpdir());
+
+      await emit(baseMessage('do something'));
+
+      const pending = await queue.listPending();
+      expect(pending[0]?.payload.agentName).toBe('cursor');
+    });
+
+    it("the user's own explicit agent selection still wins over the project's override", async () => {
+      const projectRegistry = loadedProjectRegistry({
+        demo: { path: os.tmpdir(), agent: 'cursor' },
+      });
+      const { emit, queue, projectSession, agentRegistry } = setup({
+        agentNames: ['claude', 'cursor'],
+        projectRegistry,
+      });
+      await projectSession.setActiveProject('test:U1', 'demo', os.tmpdir());
+      await agentRegistry.setActiveAgent('test:U1', 'claude');
+
+      await emit(baseMessage('do something'));
+
+      const pending = await queue.listPending();
+      expect(pending[0]?.payload.agentName).toBe('claude');
+    });
+
+    it("passes the project's model override through to the execution payload", async () => {
+      const projectRegistry = loadedProjectRegistry({
+        demo: { path: os.tmpdir(), model: 'opus' },
+      });
+      const { emit, queue, projectSession } = setup({ projectRegistry });
+      await projectSession.setActiveProject('test:U1', 'demo', os.tmpdir());
+
+      await emit(baseMessage('do something'));
+
+      const pending = await queue.listPending();
+      expect(pending[0]?.payload.model).toBe('opus');
+    });
+
+    it('leaves agentName/model at their normal defaults for a project with no overrides', async () => {
+      const projectRegistry = loadedProjectRegistry({ demo: os.tmpdir() });
+      const { emit, queue, projectSession } = setup({ projectRegistry });
+      await projectSession.setActiveProject('test:U1', 'demo', os.tmpdir());
+
+      await emit(baseMessage('do something'));
+
+      const pending = await queue.listPending();
+      expect(pending[0]?.payload.agentName).toBe('claude');
+      expect(pending[0]?.payload.model).toBeUndefined();
+    });
+  });
+
+  describe('session continuation', () => {
+    it('attaches the stored session id for the resolved agent when one exists', async () => {
+      const { emit, queue, projectSession } = setup();
+      await projectSession.setActiveProject('test:U1', 'demo', '/tmp/demo');
+      await projectSession.setSessionId('test:U1', 'claude', 'claude-session-1');
+
+      await emit(baseMessage('continue that'));
+
+      const pending = await queue.listPending();
+      expect(pending[0]?.payload.sessionId).toBe('claude-session-1');
+    });
+
+    it('leaves sessionId undefined for a fresh project/agent with no prior conversation', async () => {
+      const { emit, queue, projectSession } = setup();
+      await projectSession.setActiveProject('test:U1', 'demo', '/tmp/demo');
+
+      await emit(baseMessage('do something'));
+
+      const pending = await queue.listPending();
+      expect(pending[0]?.payload.sessionId).toBeUndefined();
+    });
+
+    it("looks up the session id under the agent that will actually run, not the identity's raw selection", async () => {
+      const projectRegistry = loadedProjectRegistry({
+        demo: { path: os.tmpdir(), agent: 'cursor' },
+      });
+      const { emit, queue, projectSession } = setup({
+        agentNames: ['claude', 'cursor'],
+        projectRegistry,
+      });
+      await projectSession.setActiveProject('test:U1', 'demo', os.tmpdir());
+      await projectSession.setSessionId('test:U1', 'cursor', 'cursor-session-1');
+      await projectSession.setSessionId('test:U1', 'claude', 'claude-session-1');
+
+      await emit(baseMessage('do something'));
+
+      const pending = await queue.listPending();
+      expect(pending[0]?.payload.agentName).toBe('cursor');
+      expect(pending[0]?.payload.sessionId).toBe('cursor-session-1');
+    });
   });
 });

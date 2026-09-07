@@ -5,8 +5,14 @@ import type { MessagingAdapter } from '../../interfaces/MessagingAdapter.js';
 import type { QueueJobContext, QueueProvider } from '../../interfaces/QueueProvider.js';
 import type { AgentRegistry } from '../agentRegistry/AgentRegistry.js';
 import type { Logger } from '../logger/Logger.js';
+import type { ProjectSession } from '../project/ProjectSession.js';
 import type { AgentExecutionResult, ExecutionJobPayload, Identity } from '../types.js';
 import type { ActiveExecutionRegistry } from './ActiveExecutionRegistry.js';
+import {
+  cleanupAttachments,
+  describeAttachmentsForPrompt,
+  downloadAttachments,
+} from './attachmentDownloader.js';
 import { PerIdentityMutex } from './perIdentityMutex.js';
 
 // Kept well under Telegram's ~4096-char message limit (and Slack's much
@@ -89,6 +95,8 @@ export interface ExecutionManagerOptions {
   concurrency: number;
   /** Recent-progress-lines cap per platform; falls back to DEFAULT_PROGRESS_MAX_LINES. */
   progressMaxLinesByPlatform?: Record<string, number>;
+  /** Where a run's returned sessionId (if any) is persisted, so the next prompt for the same identity+project+agent can continue it. */
+  projectSession: ProjectSession;
 }
 
 /**
@@ -107,6 +115,7 @@ export class ExecutionManager {
   private readonly logger: Logger;
   private readonly concurrency: number;
   private readonly progressMaxLinesByPlatform: Record<string, number>;
+  private readonly projectSession: ProjectSession;
   private readonly mutex = new PerIdentityMutex();
 
   constructor(opts: ExecutionManagerOptions) {
@@ -120,6 +129,7 @@ export class ExecutionManager {
     this.logger = opts.logger;
     this.concurrency = opts.concurrency;
     this.progressMaxLinesByPlatform = opts.progressMaxLinesByPlatform ?? {};
+    this.projectSession = opts.projectSession;
   }
 
   start(): void {
@@ -174,14 +184,29 @@ export class ExecutionManager {
       return;
     }
 
-    await responder.post({ text: renderProgress(payload.prompt, ['Starting...'], maxLines) });
-
     const lines = ['Starting...'];
+    const downloadedAttachments = await downloadAttachments(
+      payload.attachments,
+      payload.cwd,
+      ctx.jobId,
+      this.logger,
+    );
+    if (payload.attachments && payload.attachments.length > downloadedAttachments.length) {
+      lines.push(
+        `⚠️ ${payload.attachments.length - downloadedAttachments.length} attachment(s) could not be downloaded.`,
+      );
+    }
+
+    await responder.post({ text: renderProgress(payload.prompt, lines, maxLines) });
     await this.events.emit('beforeExecution', { payload, identity });
 
+    const effectivePrompt = payload.prompt + describeAttachmentsForPrompt(downloadedAttachments);
+
     const handle = agent.execute({
-      prompt: payload.prompt,
+      prompt: effectivePrompt,
       cwd: payload.cwd,
+      model: payload.model,
+      sessionId: payload.sessionId,
       onProgress: (chunk) => {
         lines.push(chunk.text);
         responder
@@ -201,6 +226,19 @@ export class ExecutionManager {
       result = await handle.result;
     } finally {
       this.activeExecutions.clear(payload.identityId, ctx.jobId);
+      if (downloadedAttachments.length > 0) {
+        await cleanupAttachments(payload.cwd, ctx.jobId, this.logger);
+      }
+    }
+
+    if (result.sessionId) {
+      await this.projectSession
+        .setSessionId(payload.identityId, payload.agentName, result.sessionId)
+        .catch((error: unknown) => {
+          this.logger.warn('Failed to persist session id for continuation', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
     }
 
     const { text: finalText, overflow } = renderFinal(payload.prompt, lines, maxLines, result);

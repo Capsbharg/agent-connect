@@ -30,6 +30,27 @@ export class ProjectSession {
     });
   }
 
+  /** The stored conversation id to continue for this identity+project+agent, if any. */
+  async getSessionId(identityId: string, agentName: string): Promise<string | undefined> {
+    const existing = await this.get(identityId);
+    return existing?.sessionIdsByAgent?.[agentName];
+  }
+
+  /**
+   * Records the session id an agent reported so the next prompt continues
+   * that conversation. A no-op if the identity no longer has an active
+   * project (e.g. it was cleared mid-execution) — there's nothing to attach
+   * the session id to.
+   */
+  async setSessionId(identityId: string, agentName: string, sessionId: string): Promise<void> {
+    const existing = await this.get(identityId);
+    if (!existing) return;
+    await this.storage.set<ProjectSessionState>(key(identityId), {
+      ...existing,
+      sessionIdsByAgent: { ...existing.sessionIdsByAgent, [agentName]: sessionId },
+    });
+  }
+
   async clear(identityId: string): Promise<void> {
     await this.storage.delete(key(identityId));
   }

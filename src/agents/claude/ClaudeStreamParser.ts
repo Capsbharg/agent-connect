@@ -12,6 +12,8 @@ export interface ClaudeTranslated {
     outputText: string;
     durationMs?: number;
     numTurns?: number;
+    /** From the `result` event's `session_id` field — verified against a real `claude --output-format stream-json` run. Pass back as `--resume` to continue this conversation. */
+    sessionId?: string;
   };
 }
 
@@ -105,6 +107,7 @@ export function translateClaudeEvent(json: unknown): ClaudeTranslated {
           outputText: (event.result as string | undefined) ?? '',
           durationMs: event.duration_ms as number | undefined,
           numTurns: event.num_turns as number | undefined,
+          sessionId: event.session_id as string | undefined,
         },
       };
 

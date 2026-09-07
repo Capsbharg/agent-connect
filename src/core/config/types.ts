@@ -23,6 +23,12 @@ export interface TelegramConfig {
   progressMaxLines: number;
 }
 
+export interface DiscordConfig {
+  botToken: string;
+  editThrottleMs: number;
+  progressMaxLines: number;
+}
+
 export interface ClaudeConfig {
   cliPath: string;
   timeoutMs: number;
@@ -69,6 +75,7 @@ export interface ResolvedConfig {
   security: SecurityConfig;
   slack?: SlackConfig;
   telegram?: TelegramConfig;
+  discord?: DiscordConfig;
   claude?: ClaudeConfig;
   cursor?: CursorConfig;
   codex?: CodexConfig;
