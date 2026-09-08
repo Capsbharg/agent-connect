@@ -30,6 +30,17 @@ This project used to be a single-purpose CommonJS app (`claude-slack-agent`): Sl
 
 Both isolate all of their CLI-specific assumptions inside their own module — a flag or schema fix never touches core.
 
+## Added after this guide was written
+
+None of these require any migration action — they're purely additive on top of everything above:
+
+- **Discord adapter** (`DiscordAdapter`) and **Gemini agent** (`GeminiAgent`) joined Slack/Telegram and Claude/Cursor/Codex as fully equivalent implementations of the same `MessagingAdapter`/`AgentAdapter` interfaces.
+- **Per-project agent/model overrides** — a `projects.json` entry can be `{ path, agent?, model? }` instead of a plain path string, to pin a project to a specific agent/model. Existing plain-string entries still work unchanged.
+- **File attachment propagation** — an attached file on Telegram/Discord is downloaded into the project and referenced in the agent's prompt.
+- **Multi-turn conversation continuation** — Claude/Codex automatically resume the previous conversation for the same identity+project+agent instead of starting fresh every prompt (`use <project>` again resets it).
+
+See the [README](../README.md) for how each of these works day to day.
+
 ## File-by-file map
 
 See the "Migration map" table in the pull request description / `docs/architecture.md`'s module map for exactly where each old file's logic now lives (e.g. `src/queue/claudeWorker.js` → `core/execution/ExecutionManager.ts`).
