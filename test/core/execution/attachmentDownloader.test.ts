@@ -104,6 +104,32 @@ describe('downloadAttachments / cleanupAttachments', () => {
     expect(fs.readdirSync(destDir)).toHaveLength(1);
   });
 
+  it('disambiguates two attachments that share the same filename instead of overwriting one', async () => {
+    let call = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        call++;
+        return fakeResponse(new TextEncoder().encode(`content-${call}`).buffer);
+      }),
+    );
+
+    const downloaded = await downloadAttachments(
+      [
+        { filename: 'image.png', url: 'https://example.com/a' },
+        { filename: 'image.png', url: 'https://example.com/b' },
+      ],
+      cwd,
+      'job-1',
+      createTestLogger(),
+    );
+
+    expect(downloaded).toHaveLength(2);
+    expect(downloaded[0]!.relativePath).not.toBe(downloaded[1]!.relativePath);
+    expect(fs.readFileSync(path.join(cwd, downloaded[0]!.relativePath), 'utf8')).toBe('content-1');
+    expect(fs.readFileSync(path.join(cwd, downloaded[1]!.relativePath), 'utf8')).toBe('content-2');
+  });
+
   it('skips (logs, does not throw) an attachment with neither url nor data', async () => {
     const downloaded = await downloadAttachments(
       [{ filename: 'ghost.txt' }],

@@ -27,6 +27,20 @@ function sanitizeFilename(name: string | undefined, index: number): string {
   return base || `attachment-${index}`;
 }
 
+/** Disambiguates a filename against ones already used in this batch, so two attachments with the same name (e.g. two "image.png" pastes) don't silently overwrite each other. */
+function dedupeFilename(name: string, used: Set<string>): string {
+  if (!used.has(name)) return name;
+  const ext = path.extname(name);
+  const stem = name.slice(0, name.length - ext.length);
+  let candidate: string;
+  let n = 1;
+  do {
+    candidate = `${stem}-${n}${ext}`;
+    n++;
+  } while (used.has(candidate));
+  return candidate;
+}
+
 async function fetchBytes(url: string): Promise<Buffer> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -65,6 +79,7 @@ export async function downloadAttachments(
 
   const destDir = attachmentsDir(cwd, jobId);
   const downloaded: DownloadedAttachment[] = [];
+  const usedFilenames = new Set<string>();
 
   for (const [index, attachment] of attachments.entries()) {
     const label = attachment.filename ?? `attachment ${index}`;
@@ -73,7 +88,8 @@ export async function downloadAttachments(
     try {
       const bytes = attachment.data ?? (await fetchBytes(attachment.url!));
       await fs.mkdir(destDir, { recursive: true });
-      const filename = sanitizeFilename(attachment.filename, index);
+      const filename = dedupeFilename(sanitizeFilename(attachment.filename, index), usedFilenames);
+      usedFilenames.add(filename);
       const destPath = path.join(destDir, filename);
       await fs.writeFile(destPath, bytes);
       downloaded.push({ originalFilename: label, relativePath: path.relative(cwd, destPath) });

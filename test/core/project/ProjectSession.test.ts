@@ -99,6 +99,28 @@ describe('ProjectSession', () => {
       expect(await session.getSessionId('U1', 'claude')).toBeUndefined();
     });
 
+    it("clearSessionId() drops one agent's session id without touching another agent's or the project selection", async () => {
+      const session = new ProjectSession(new InMemoryStorageProvider());
+      await session.setActiveProject('U1', 'demo', '/repo/demo');
+      await session.setSessionId('U1', 'claude', 'claude-session-1');
+      await session.setSessionId('U1', 'codex', 'codex-session-1');
+
+      await session.clearSessionId('U1', 'claude');
+
+      expect(await session.getSessionId('U1', 'claude')).toBeUndefined();
+      expect(await session.getSessionId('U1', 'codex')).toBe('codex-session-1');
+      expect(await session.get('U1')).toMatchObject({ project: 'demo', cwd: '/repo/demo' });
+    });
+
+    it('clearSessionId() is a no-op when there is no active project or nothing stored for that agent', async () => {
+      const session = new ProjectSession(new InMemoryStorageProvider());
+      await expect(session.clearSessionId('U1', 'claude')).resolves.toBeUndefined();
+
+      await session.setActiveProject('U1', 'demo', '/repo/demo');
+      await expect(session.clearSessionId('U1', 'claude')).resolves.toBeUndefined();
+      expect(await session.get('U1')).toMatchObject({ project: 'demo', cwd: '/repo/demo' });
+    });
+
     it('clear() also drops any stored session ids along with the project selection', async () => {
       const session = new ProjectSession(new InMemoryStorageProvider());
       await session.setActiveProject('U1', 'demo', '/repo/demo');

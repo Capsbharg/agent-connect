@@ -239,6 +239,18 @@ export class ExecutionManager {
             error: error instanceof Error ? error.message : String(error),
           });
         });
+    } else if (payload.sessionId && !result.success && !result.cancelled && !result.timedOut) {
+      // This run tried to resume a stored conversation and failed outright
+      // (not cancelled/timed out) without reporting a new session id — most
+      // likely the stored one is no longer valid. Drop it so the next prompt
+      // starts fresh instead of retrying the same broken resume forever.
+      await this.projectSession
+        .clearSessionId(payload.identityId, payload.agentName)
+        .catch((error: unknown) => {
+          this.logger.warn('Failed to clear stale session id', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
     }
 
     const { text: finalText, overflow } = renderFinal(payload.prompt, lines, maxLines, result);

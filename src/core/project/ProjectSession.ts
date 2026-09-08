@@ -51,6 +51,24 @@ export class ProjectSession {
     });
   }
 
+  /**
+   * Drops a stored session id for one agent, e.g. after a failed `--resume`
+   * (the CLI's session storage expired/was pruned/became incompatible) so the
+   * next prompt starts a fresh conversation instead of retrying the same
+   * broken resume forever. A no-op if there's no active project or nothing
+   * was stored for that agent.
+   */
+  async clearSessionId(identityId: string, agentName: string): Promise<void> {
+    const existing = await this.get(identityId);
+    if (!existing?.sessionIdsByAgent || !(agentName in existing.sessionIdsByAgent)) return;
+    const sessionIdsByAgent = { ...existing.sessionIdsByAgent };
+    delete sessionIdsByAgent[agentName];
+    await this.storage.set<ProjectSessionState>(key(identityId), {
+      ...existing,
+      sessionIdsByAgent,
+    });
+  }
+
   async clear(identityId: string): Promise<void> {
     await this.storage.delete(key(identityId));
   }

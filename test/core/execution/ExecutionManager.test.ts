@@ -504,5 +504,96 @@ describe('ExecutionManager', () => {
 
       expect(await projectSession.getSessionId('test:U1', 'claude')).toBe('existing-session-id');
     });
+
+    it('clears the stored session id when a resume attempt fails outright, so the next prompt starts fresh', async () => {
+      const responder = fakeResponder();
+      const adapter = fakeAdapter(responder);
+      const agent: AgentAdapter = {
+        name: 'claude',
+        healthCheck: async () => ({ healthy: true }),
+        execute: () => ({
+          cancel: vi.fn(),
+          result: Promise.resolve({
+            success: false,
+            outputText: '',
+            durationMs: 1,
+            exitCode: 1,
+            cancelled: false,
+            timedOut: false,
+            errorMessage: 'session not found',
+          }),
+        }),
+      };
+
+      const storage = new InMemoryStorageProvider();
+      const agentRegistry = new AgentRegistry([agent], 'claude', storage);
+      const queue = new InMemoryQueueProvider<ExecutionJobPayload>();
+      const projectSession = new ProjectSession(storage);
+      await projectSession.setActiveProject('test:U1', 'demo', os.tmpdir());
+      await projectSession.setSessionId('test:U1', 'claude', 'stale-session-id');
+
+      const manager = new ExecutionManager({
+        queue,
+        agentRegistry,
+        messagingAdapters: [adapter],
+        events: new EventBus(createTestLogger()),
+        activeExecutions: new ActiveExecutionRegistry(),
+        logger: createTestLogger(),
+        concurrency: 4,
+        projectSession,
+      });
+      manager.start();
+
+      await queue.enqueue(basePayload({ identityId: 'test:U1', sessionId: 'stale-session-id' }));
+      await vi.waitFor(() => expect(responder.complete).toHaveBeenCalled());
+
+      expect(await projectSession.getSessionId('test:U1', 'claude')).toBeUndefined();
+    });
+
+    it('leaves the stored session id alone when a resume attempt is only cancelled or timed out', async () => {
+      const responder = fakeResponder();
+      const adapter = fakeAdapter(responder);
+      const agent: AgentAdapter = {
+        name: 'claude',
+        healthCheck: async () => ({ healthy: true }),
+        execute: () => ({
+          cancel: vi.fn(),
+          result: Promise.resolve({
+            success: false,
+            outputText: '',
+            durationMs: 1,
+            exitCode: 1,
+            cancelled: true,
+            timedOut: false,
+          }),
+        }),
+      };
+
+      const storage = new InMemoryStorageProvider();
+      const agentRegistry = new AgentRegistry([agent], 'claude', storage);
+      const queue = new InMemoryQueueProvider<ExecutionJobPayload>();
+      const projectSession = new ProjectSession(storage);
+      await projectSession.setActiveProject('test:U1', 'demo', os.tmpdir());
+      await projectSession.setSessionId('test:U1', 'claude', 'in-flight-session-id');
+
+      const manager = new ExecutionManager({
+        queue,
+        agentRegistry,
+        messagingAdapters: [adapter],
+        events: new EventBus(createTestLogger()),
+        activeExecutions: new ActiveExecutionRegistry(),
+        logger: createTestLogger(),
+        concurrency: 4,
+        projectSession,
+      });
+      manager.start();
+
+      await queue.enqueue(
+        basePayload({ identityId: 'test:U1', sessionId: 'in-flight-session-id' }),
+      );
+      await vi.waitFor(() => expect(responder.complete).toHaveBeenCalled());
+
+      expect(await projectSession.getSessionId('test:U1', 'claude')).toBe('in-flight-session-id');
+    });
   });
 });
