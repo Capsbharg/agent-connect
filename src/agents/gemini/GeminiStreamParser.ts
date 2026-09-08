@@ -1,6 +1,7 @@
 export interface GeminiTranslated {
   progressLines?: string[];
   answerDelta?: string;
+  sessionId?: string;
   final?: {
     success: boolean;
     outputText: string;
@@ -31,15 +32,23 @@ function asString(value: unknown): string | undefined {
  * the answer is only ever available as accumulated "message"/assistant
  * content deltas, so `final.outputText` here is always empty; the caller
  * falls back to its own accumulated answer, same as Cursor/Codex.
+ *
+ * `init.session_id` is a real, resumable conversation id — confirmed against
+ * a live install: `--resume <that-uuid>` correctly restores prior context
+ * despite `gemini --help` only documenting "latest"/an index for `--resume`;
+ * the CLI's own error text on an invalid id ("...--resume {uuid}...")
+ * confirms this is sanctioned, not an accident. See GeminiAgent.ts.
  */
 export function translateGeminiEvent(json: unknown): GeminiTranslated {
   if (!json || typeof json !== 'object') return {};
   const event = json as Record<string, unknown>;
 
   switch (event.type) {
-    case 'init':
+    case 'init': {
       // The caller emits its own "Starting..." line when the process spawns.
-      return {};
+      const sessionId = asString(event.session_id);
+      return sessionId ? { sessionId } : {};
+    }
 
     case 'message': {
       if (event.role !== 'assistant') return {};

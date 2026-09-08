@@ -74,16 +74,25 @@ export class CodexAgent implements AgentAdapter {
       },
     );
 
-    const result = handle.done.then((runResult) => ({
-      success: runResult.success && (!finalResult || finalResult.success),
-      outputText: finalResult?.outputText || answer || '',
-      durationMs: runResult.durationMs,
-      exitCode: runResult.exitCode,
-      cancelled: runResult.cancelled,
-      timedOut: runResult.timedOut,
-      errorMessage: runResult.errorMessage,
-      sessionId: capturedSessionId ?? request.sessionId,
-    }));
+    const result = handle.done.then((runResult) => {
+      const success = runResult.success && (!finalResult || finalResult.success);
+      return {
+        success,
+        outputText: finalResult?.outputText || answer || '',
+        durationMs: runResult.durationMs,
+        exitCode: runResult.exitCode,
+        cancelled: runResult.cancelled,
+        timedOut: runResult.timedOut,
+        errorMessage: runResult.errorMessage,
+        // A failed resume (invalid/expired thread id) can exit before any
+        // "thread.started" event streams, so capturedSessionId stays
+        // undefined — fall back to the original id only on success (some
+        // successful resumes just don't re-emit thread.started), so a
+        // genuine failure reports no session id and ExecutionManager can
+        // clear the stale one instead of re-persisting it forever.
+        sessionId: capturedSessionId ?? (success ? request.sessionId : undefined),
+      };
+    });
 
     return { cancel: handle.cancel, result };
   }

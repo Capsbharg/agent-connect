@@ -58,10 +58,16 @@ export class CursorAgent implements AgentAdapter {
 
     // request.sessionId / result.sessionId are intentionally not wired up
     // here: Cursor's docs mention a `--resume="chat-id"` flag, but unlike
-    // Claude's/Codex's session ids (verified against real CLI output — see
-    // ClaudeAgent.ts/CodexAgent.ts), this hasn't been confirmed against a
-    // real cursor-agent install, so it isn't safe to build a continuation
-    // feature on top of it yet. Verify it, then wire it the same way.
+    // Claude's/Codex's/Gemini's session ids (all verified against real CLI
+    // output — see ClaudeAgent.ts/CodexAgent.ts/GeminiAgent.ts), this hasn't
+    // been confirmed against a real cursor-agent install. Attempting that
+    // verification directly (2026-09-08) hit a platform wall, not just an
+    // unverified flag: Cursor's own installer (cursor.com/install) only ships
+    // Linux/Darwin binaries — it exits with "Unsupported operating system"
+    // on Windows, and the download host 403s a `windows`/`win32` target
+    // directly — so there's no native Windows build to test against at all
+    // (Cursor's docs point Windows users at WSL). Verify on a Linux/macOS
+    // install, then wire it the same way.
     const args = ['-p', '--output-format', 'stream-json'];
     // Runs headless (no human to answer the CLI's own per-action confirmation
     // prompts) — see the same note on ClaudeAgent's --dangerously-skip-permissions.

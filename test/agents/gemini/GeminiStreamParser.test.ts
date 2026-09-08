@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { translateGeminiEvent } from '../../../src/agents/gemini/GeminiStreamParser.js';
 
 describe('translateGeminiEvent', () => {
-  it('suppresses init events', () => {
-    expect(translateGeminiEvent({ type: 'init', session_id: 's1', model: 'gemini-pro' })).toEqual(
-      {},
-    );
+  it('extracts the session_id from an init event, with no progress line', () => {
+    const result = translateGeminiEvent({ type: 'init', session_id: 's1', model: 'gemini-pro' });
+    expect(result).toEqual({ sessionId: 's1' });
+  });
+
+  it('extracts nothing from an init event with no session_id', () => {
+    expect(translateGeminiEvent({ type: 'init', model: 'gemini-pro' })).toEqual({});
   });
 
   it('collects assistant message content as an answer delta', () => {
