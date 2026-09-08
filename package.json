@@ -1,6 +1,6 @@
 {
   "name": "@capsbharg/agent-connect",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Universal middleware between messaging platforms (Slack, Telegram, Discord, ...) and AI coding agents (Claude Code, Cursor, Codex, Gemini, ...).",
   "type": "module",
   "repository": {
