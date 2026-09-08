@@ -42,5 +42,9 @@ console.log('\n=== Connected to Slack (Socket Mode) ===');
 console.log(
   'DM the bot, or mention it in a channel it\'s in. Try: "use demo", then give it a task.',
 );
+console.log(
+  'Your next prompt in the same project automatically continues that conversation — ' +
+    'attach a file to a message and Claude can read it too.',
+);
 console.log(`Queue dashboard: http://127.0.0.1:${ADMIN_PORT}/admin/queues`);
 console.log('Press Ctrl+C to stop.\n');
